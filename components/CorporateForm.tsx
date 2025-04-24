@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Check, AlertCircle, Plus, Minus, Copy, CopyCheck } from "lucide-react";
@@ -33,6 +33,21 @@ export default function CorporateForm() {
   const [uploadTab, setUploadTab] = useState("file");
   const [isCopied, setIsCopied] = useState(false);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [uploadedFileInfo, setUploadedFileInfo] = useState<{ name: string; size: number } | null>(null);
+  const [isFileUploaded, setIsFileUploaded] = useState(false);
+  
+  // Ref для блока с транзакцией
+  const transactionCardRef = useRef<HTMLDivElement>(null);
+
+  // Прокрутка к блоку с транзакцией при её генерации
+  useEffect(() => {
+    if (transactionXDR && transactionCardRef.current) {
+      transactionCardRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  }, [transactionXDR]);
 
   // Initialize form
   const form = useForm<FormSchema>({
@@ -112,8 +127,18 @@ export default function CorporateForm() {
   // Handle file upload
   const handleFileUpload = async (file: File) => {
     try {
+      // Сохраняем информацию о файле
+      setUploadedFileInfo({
+        name: file.name,
+        size: file.size
+      });
+      
       const ipfsHash = await uploadFile(file);
       form.setValue("contractIPFSHash", ipfsHash, { shouldValidate: true });
+      
+      // Отмечаем, что файл был успешно загружен
+      setIsFileUploaded(true);
+      
       toast.success("File uploaded successfully");
       return ipfsHash;
     } catch (error) {
@@ -371,25 +396,58 @@ export default function CorporateForm() {
                 {/* ContractIPFS Field */}
                 <FormItem className="space-y-4">
                   <FormLabel>Contract IPFS (Optional)</FormLabel>
-                  <Tabs
-                    defaultValue="file"
-                    value={uploadTab}
-                    onValueChange={setUploadTab}
-                    className="w-full"
-                  >
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="file">Upload File</TabsTrigger>
-                      <TabsTrigger value="hash">IPFS Hash</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="file" className="pt-4">
-                      <FileUploadField onUpload={handleFileUpload} />
-                      {form.formState.errors.contractIPFSHash && (
-                        <p className="text-sm font-medium text-destructive mt-2">
-                          {form.formState.errors.contractIPFSHash.message}
-                        </p>
+                  
+                  {!isFileUploaded ? (
+                    <Tabs
+                      defaultValue="file"
+                      value={uploadTab}
+                      onValueChange={setUploadTab}
+                      className="w-full"
+                    >
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="file">Upload File</TabsTrigger>
+                        <TabsTrigger value="hash">IPFS Hash</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="file" className="pt-4">
+                        <FileUploadField 
+                          onUpload={handleFileUpload} 
+                        />
+                        {form.formState.errors.contractIPFSHash && (
+                          <p className="text-sm font-medium text-destructive mt-2">
+                            {form.formState.errors.contractIPFSHash.message}
+                          </p>
+                        )}
+                      </TabsContent>
+                      <TabsContent value="hash" className="pt-4">
+                        <FormField
+                          control={form.control}
+                          name="contractIPFSHash"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input
+                                  placeholder="Enter IPFS hash"
+                                  {...field}
+                                  className="input-glow"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Enter an existing IPFS hash for your contract
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  ) : (
+                    <div className="space-y-4">
+                      {uploadedFileInfo && (
+                        <FileUploadField 
+                          onUpload={handleFileUpload} 
+                          fileInfo={uploadedFileInfo}
+                        />
                       )}
-                    </TabsContent>
-                    <TabsContent value="hash" className="pt-4">
                       <FormField
                         control={form.control}
                         name="contractIPFSHash"
@@ -397,20 +455,21 @@ export default function CorporateForm() {
                           <FormItem>
                             <FormControl>
                               <Input
-                                placeholder="Enter IPFS hash"
+                                placeholder="IPFS hash"
                                 {...field}
                                 className="input-glow"
+                                disabled
                               />
                             </FormControl>
                             <FormDescription>
-                              Enter an existing IPFS hash for your contract
+                              IPFS hash for your uploaded contract
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    </TabsContent>
-                  </Tabs>
+                    </div>
+                  )}
                 </FormItem>
               </div>
             </CardContent>
@@ -437,7 +496,7 @@ export default function CorporateForm() {
 
       {/* Display transaction XDR */}
       {transactionXDR && (
-        <Card className="mt-6 border-primary/20">
+        <Card className="mt-6 border-primary/20" ref={transactionCardRef}>
           <CardContent className="pt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
