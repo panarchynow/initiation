@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { StrKey } from "stellar-sdk";
 import { TAGS, getTagIds } from "./stellar/index";
+import { CID } from "multiformats/cid";
 
 // Calculate UTF-8 byte length of a string
 export function calculateByteLength(str: string): number {
@@ -21,12 +22,17 @@ const validateStellarAccountId = (value: string) => {
   return StrKey.isValidEd25519PublicKey(value);
 };
 
-// Validate IPFS hash format
+// Validate IPFS hash format using multiformats/cid
 const validateIPFSHash = (value: string) => {
-  return (
-    (value.startsWith("Qm") && value.length === 46) || 
-    (value.startsWith("b") && value.length >= 48)
-  );
+  try {
+    // Пробуем распарсить CID
+    CID.parse(value);
+    return true;
+  } catch (error) {
+    // Если не удалось распарсить, значит, это невалидный CID
+    console.warn("Invalid IPFS CID format:", error);
+    return false;
+  }
 };
 
 // Define MyPart schema

@@ -1,71 +1,62 @@
 "use client";
 
+import { CID } from "multiformats/cid";
+
 /**
- * Handles file uploads to IPFS via the Storacha service
+ * Handles file uploads to IPFS via Pinata
  */
 export async function uploadFile(file: File): Promise<string> {
   try {
-    // In a real implementation, you would upload to Storacha
-    // This is a mock implementation for demonstration purposes
-    
     // Check file size
     if (file.size > 1048576) { // 1 MiB
       throw new Error("File size exceeds maximum allowed (1 MiB)");
     }
     
-    // Mock API call to upload service
-    // In production, replace with actual API call to storacha/upload-service
-    const mockUploadResponse = await mockFileUpload(file);
+    // Создаем FormData для отправки файла
+    const formData = new FormData();
+    formData.append('file', file);
     
-    if (!mockUploadResponse.success) {
-      throw new Error(mockUploadResponse.error || "Upload failed");
+    // Отправляем запрос на наш API маршрут
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Upload failed with status: ${response.status}`);
     }
     
-    if (!mockUploadResponse.ipfsHash) {
+    const responseData = await response.json();
+    
+    if (!responseData.cid) {
       throw new Error("No IPFS hash returned from upload service");
     }
     
-    return mockUploadResponse.ipfsHash;
+    // Проверяем, что полученный CID валидный
+    if (!verifyIPFSHash(responseData.cid)) {
+      throw new Error("Invalid IPFS CID format returned from server");
+    }
+    
+    // Возвращаем CID файла
+    return responseData.cid;
   } catch (error) {
     console.error("Error uploading file:", error);
     throw error;
   }
 }
 
-// Mock function to simulate file upload
-// In production, this would be replaced with actual API calls
-async function mockFileUpload(file: File): Promise<{
-  success: boolean;
-  ipfsHash?: string;
-  error?: string;
-}> {
-  return new Promise((resolve) => {
-    // Simulate network delay
-    setTimeout(() => {
-      // Use a deterministic hash instead of random generation
-      // This avoids hydration mismatch between server and client
-      const mockHash = "QmP7jHG2QhqbcNRMJxzwe123456";
-      
-      resolve({
-        success: true,
-        ipfsHash: mockHash,
-      });
-    }, 1500); // Simulate 1.5s upload time
-  });
-}
-
-// In production, implement actual verification of IPFS hash
+/**
+ * Проверяет, является ли строка валидным IPFS CID (Content Identifier)
+ * Использует библиотеку multiformats/cid для проверки
+ */
 export function verifyIPFSHash(hash: string): boolean {
-  // Basic validation for IPFS hash format
-  // CIDv0 starts with Qm and is 46 characters long
-  if (hash.startsWith("Qm") && hash.length === 46) {
+  try {
+    // Пробуем распарсить CID
+    CID.parse(hash);
     return true;
+  } catch (error) {
+    console.warn("Invalid IPFS CID format:", error);
+    return false;
   }
-  
-  // CIDv1 typically starts with "b" and is longer
-  if (hash.startsWith("b") && hash.length >= 48) {
-    return true;
-  }
-  
-  return false;
 }
