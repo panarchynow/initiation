@@ -1,0 +1,44 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# KISS (Keep It Simple, Stupid)
+
+The KISS principle advocates for simplicity in design and implementation. Simpler solutions are more maintainable, easier to understand, and less prone to bugs.
+
+## Guidelines for this project:
+
+### Code Structure
+- Prefer simple, straightforward solutions over complex ones
+- Use clear, descriptive variable and function names
+- Avoid premature optimization
+- Limit function complexity and length (aim for less than 50 lines per function)
+
+### Components
+- Keep components focused on a single responsibility
+- Limit props to what is necessary
+- Use TypeScript interfaces to document component props
+- Break down complex components into smaller, manageable pieces
+
+### State Management
+- Keep state as local as possible
+- Only lift state up when necessary
+- Avoid deep nesting of contexts
+- Use React Query for server state and React state for UI state
+
+### API & Data Fetching
+- Create simple, predictable data fetching patterns
+- Handle loading and error states consistently
+- Use type safety throughout data flow
+
+### Styling
+- Favor functional CSS (like Tailwind) for component styling
+- Avoid overly complex or deeply nested CSS selectors
+- Maintain a consistent design system
+
+### Performance
+- Only optimize when there's a measurable performance issue
+- Focus on the common path first
+- Use React developer tools to identify actual performance bottlenecks
+- Remember that premature optimization is the root of all evil

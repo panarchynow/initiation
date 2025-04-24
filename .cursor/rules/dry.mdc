@@ -1,0 +1,35 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# DRY (Don't Repeat Yourself)
+
+The DRY principle states that "Every piece of knowledge must have a single, unambiguous, authoritative representation within a system."
+
+## Guidelines for this project:
+
+### Components
+- Extract reusable UI components into [components/ui/](mdc:components/ui) directory
+- Use composition over inheritance
+- Create abstraction only when a pattern repeats 2-3 times
+
+### Styling
+- Use Tailwind utility classes for consistent styling
+- Extract common class combinations into components or custom Tailwind classes in [tailwind.config.ts](mdc:tailwind.config.ts)
+- Consider using `clsx` or `cn` utility (based on `clsx` and `tailwind-merge`) for conditional class application
+
+### State Management
+- Centralize shared state
+- Use React Context for state that needs to be accessed by multiple components
+- Create reusable hooks in [hooks/](mdc:hooks) for common stateful logic
+
+### API & Data Fetching
+- Use centralized API client or utilities
+- Create reusable data fetching patterns
+
+### Code Structure
+- Follow the principle of single responsibility
+- Keep files focused on a single concern
+- Break down complex functions into smaller ones
+- Use type definitions to maintain consistency

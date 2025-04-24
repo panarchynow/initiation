@@ -1,0 +1,86 @@
+---
+description: Инструкция по составлению плана разработки
+globs: PLAN.md
+alwaysApply: false
+---
+# Development Plan Guide
+
+## Plan Structure
+A development plan must include:
+1. Title with task name
+2. Usage instructions
+3. Implementation stages
+4. Dependencies
+5. Notes
+
+## Authoring Rules
+
+### Title
+- Format: `# Implementation Plan: <Task Name>`
+- Keep it specific and descriptive
+
+### Usage Instructions
+- Place directly below the title
+- Include step-by-step guide
+- List verification commands
+- Describe error handling steps
+
+### Implementation Stages
+- Number each stage
+- Order by dependencies (prerequisites first)
+- Each stage includes:
+  - Subtitle heading
+  - Checklist in `- [ ] Task` format
+  - Test creation step
+  - Verification step
+
+### Dependencies
+- List required libraries and tools
+- Only include direct dependencies
+
+### Notes
+- Implementation considerations
+- Potential improvements
+- Limitations and warnings
+
+## Task Principles
+
+### Atomicity
+- Each task should be self-contained
+- Results must be verifiable
+- No undocumented prerequisites
+
+### Sequence
+- Tasks follow logical order
+- Later tasks can build on earlier ones
+- Tests written immediately after implementation
+
+### Verifiability
+- Each task has verification steps
+- Include all test types
+- Include linting
+
+### Clarity
+- Use clear, specific language
+- Reference exact file/function names
+- Specify concrete actions
+
+## Example
+```markdown
+# Implementation Plan: <Task>
+
+## How to Use This Plan
+1. ...
+
+## 1. First Stage
+- [ ] Task 1
+- [ ] Task 2
+- [ ] Write tests
+- [ ] Run verifications
+
+## Dependencies
+- `package` - description
+
+## Notes
+- Note 1
+```

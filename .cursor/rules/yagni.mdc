@@ -1,0 +1,49 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# YAGNI (You Aren't Gonna Need It)
+
+The YAGNI principle suggests that developers should not add functionality until it is necessary. This helps avoid overengineering and keeps the codebase lean.
+
+## Guidelines for this project:
+
+### Features & Requirements
+- Implement only what is required by current specs
+- Avoid speculative generality
+- Don't build infrastructure for features that might be needed in the future
+- Add abstractions only when they solve immediate problems
+
+### Components
+- Create components only for immediate UI needs
+- Avoid excessive configurability via props
+- Don't build complex component libraries before they're needed
+- Start with specific implementations before generalizing
+
+### State Management
+- Begin with local state
+- Only introduce global state management when clearly needed
+- Delay adopting complex state patterns until simple ones become insufficient
+
+### API & Data Fetching
+- Start with simple data fetching directly in components
+- Introduce abstractions only when patterns emerge
+- Don't build complex caching mechanisms prematurely
+
+### Performance Optimization
+- Focus on delivering working features first
+- Optimize only in response to actual performance issues
+- Use performance monitoring to identify real bottlenecks
+- Remember that simple code is often easier to optimize later
+
+### Project Structure
+- Start with a flat structure and refactor as patterns emerge
+- Don't create folders and files for anticipated future needs
+- Let the application's natural organization emerge through development
+
+### Third-Party Libraries
+- Only add dependencies when they solve real problems
+- Consider the maintenance cost of each new dependency
+- Prefer smaller, focused libraries over large frameworks when possible
+- Don't integrate tools "just in case" they might be useful later

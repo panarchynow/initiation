@@ -7,6 +7,14 @@ alwaysApply: true
 
 This is a [Next.js](mdc:https:/nextjs.org) project using [React](mdc:https:/react.dev) and [TypeScript](mdc:https:/www.typescriptlang.org).
 
+## IMPORTANT RULES:
+
+### NEVER MODIFY SERVER STATE!
+- DO NOT start development server
+- DO NOT stop running server
+- DO NOT restart server
+- DO NOT run commands that affect server state
+
 ## Key Files and Directories
 
 - **Dependencies**: Defined in [package.json](mdc:package.json).
