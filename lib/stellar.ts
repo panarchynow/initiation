@@ -154,8 +154,109 @@ export async function generateStellarTransaction(
     // Build and return the transaction XDR
     const builtTransaction = await buildTransaction(account, formData);
     return builtTransaction.toXDR();
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error generating Stellar transaction:", error);
+    
+    // Handle NotFoundError (аккаунт не найден)
+    if (error instanceof Error && error.name === "NotFoundError") {
+      throw new Error(
+        "Account not found on Stellar network. Please check your Account ID or create a new account."
+      );
+    }
+    
+    // Приведение к типу для доступа к деталям ошибки
+    const stellarError = error as { 
+      response?: { 
+        status?: number, 
+        data?: { 
+          title?: string,
+          extras?: {
+            result_codes?: {
+              transaction?: string,
+              operations?: string[]
+            }
+          } 
+        } 
+      } 
+    };
+    
+    // Проверка на наличие detatiled error codes
+    if (stellarError.response?.data?.extras?.result_codes?.transaction) {
+      const txErrorCode = stellarError.response.data.extras.result_codes.transaction;
+      
+      // Обработка специфичных кодов ошибок транзакций
+      switch (txErrorCode) {
+        case 'tx_bad_seq':
+          throw new Error(
+            "Sequence number is incorrect. This might happen if multiple transactions are being submitted concurrently."
+          );
+        case 'tx_insufficient_fee':
+          throw new Error(
+            "The transaction fee is too low. Network might be congested or the minimum fee has increased."
+          );
+        case 'tx_insufficient_balance':
+          throw new Error(
+            "Insufficient balance to perform this operation. Please check your account balance."
+          );
+        case 'tx_failed':
+          // Проверить ошибки операций
+          {
+            const opErrors = stellarError.response.data.extras.result_codes.operations;
+            if (opErrors && opErrors.length > 0) {
+              throw new Error(
+                `Transaction failed: Operation error code(s): ${opErrors.join(', ')}`
+              );
+            }
+          }
+          throw new Error(
+            "Transaction failed. Please check your transaction parameters."
+          );
+        default:
+          throw new Error(
+            `Stellar transaction error: ${txErrorCode}`
+          );
+      }
+    }
+    
+    // Обработка HTTP ошибок
+    if (stellarError.response?.status) {
+      switch (stellarError.response.status) {
+        case 400:
+          throw new Error(
+            `Bad request: ${stellarError.response.data?.title || "Check your transaction parameters."}`
+          );
+        case 404:
+          throw new Error(
+            "Resource not found. Please check your Account ID or network settings."
+          );
+        case 429:
+          throw new Error(
+            "Rate limit exceeded. Please try again later."
+          );
+        case 500:
+        case 503:
+          throw new Error(
+            "Stellar network is experiencing issues. Please try again later."
+          );
+        case 504:
+          throw new Error(
+            "Request timed out. The transaction may or may not have been processed."
+          );
+        default:
+          throw new Error(
+            `Stellar API error (${stellarError.response.status}): ${stellarError.response.data?.title || "Unknown error"}`
+          );
+      }
+    }
+    
+    // Проверка на AccountRequiresMemoError
+    if (error instanceof Error && error.name === "AccountRequiresMemoError") {
+      throw new Error(
+        "The destination account requires a memo. Please add a memo to the transaction."
+      );
+    }
+    
+    // Generic error fallback
     throw new Error(
       "Failed to generate Stellar transaction. Please try again."
     );

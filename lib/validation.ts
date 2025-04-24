@@ -40,10 +40,10 @@ const myPartSchema = z.object({
 // Define zod schema for form validation
 export const formSchema = z.object({
   accountId: z.string()
-    .refine((val) => val === "" || validateStellarAccountId(val), {
+    .min(1, "Account ID is required")
+    .refine(validateStellarAccountId, {
       message: "Invalid Stellar account ID",
-    })
-    .optional(),
+    }),
   name: z
     .string()
     .min(1, "Name is required")
@@ -58,9 +58,35 @@ export const formSchema = z.object({
     }),
   website: z
     .string()
-    .url("Must be a valid URL")
-    .optional(),
-  myParts: z.array(myPartSchema),
+    .optional()
+    .refine((val) => !val || val.startsWith('http'), {
+      message: "Must be a valid URL",
+    })
+    .refine((val) => !val || validateByteLength(val), {
+      message: `Website URL must not exceed ${MAX_BYTE_SIZE} bytes in UTF-8 encoding`,
+    }),
+  myParts: z.array(
+    z.object({
+      id: z.string().regex(/^\d+$/, "ID must contain only numbers"),
+      accountId: z.string().refine(
+        (val) => val === "" || validateStellarAccountId(val), {
+          message: "Invalid Stellar account ID",
+        }
+      ),
+    })
+  )
+    .refine(
+      (parts) => {
+        const nonEmptyAccountIds = parts
+          .map(part => part.accountId)
+          .filter(id => id !== "");
+        const uniqueAccountIds = new Set(nonEmptyAccountIds);
+        return nonEmptyAccountIds.length === uniqueAccountIds.size;
+      },
+      {
+        message: "All My Parts account IDs must be unique"
+      }
+    ),
   telegramPartChatID: z
     .string()
     .regex(/^\d*$/, "Must contain only numbers")
@@ -72,11 +98,22 @@ export const formSchema = z.object({
     .optional(),
   contractIPFSHash: z
     .string()
-    .refine(validateIPFSHash, {
+    .optional()
+    .refine((val) => !val || validateIPFSHash(val), {
       message: "Invalid IPFS hash format",
-    })
-    .optional(),
-});
+    }),
+}).refine(
+  (data) => {
+    if (!data.myParts.length) return true;
+    return !data.myParts.some(part => 
+      part.accountId !== "" && part.accountId === data.accountId
+    );
+  },
+  {
+    message: "My Parts account IDs must not match the main Account ID",
+    path: ["myParts"],
+  }
+);
 
 // Export the type of the form schema
 export type FormSchema = z.infer<typeof formSchema>;
