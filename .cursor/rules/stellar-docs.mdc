@@ -1,0 +1,11 @@
+---
+description: 
+globs: lib/stellar/**/*.ts
+alwaysApply: false
+---
+# Stellar Library Documentation Rule
+
+- **Update README on Edit:** When modifying any file within the `./lib/stellar/` directory, update `./lib/stellar/README.md`.
+- **README Content:** The update description in the README must be concise, in English, and focus on technical changes for AI comprehension.
+- **Consult README:** Before performing tasks related to the `./lib/stellar/` library, consult `./lib/stellar/README.md` for context and current implementation details.
+- **Keep README Current:** If significant new insights, code additions, or updates occur within the `./lib/stellar/` library, update the `./lib/stellar/README.md` accordingly.
