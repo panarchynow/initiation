@@ -1,0 +1,21 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project Overview
+
+This is a [Next.js](mdc:https:/nextjs.org) project using [React](mdc:https:/react.dev) and [TypeScript](mdc:https:/www.typescriptlang.org).
+
+## Key Files and Directories
+
+- **Dependencies**: Defined in [package.json](mdc:package.json).
+- **Next.js Config**: Configuration for Next.js can be found in [next.config.js](mdc:next.config.js).
+- **TypeScript Config**: TypeScript settings are in [tsconfig.json](mdc:tsconfig.json).
+- **Styling**: Uses [Tailwind CSS](mdc:https:/tailwindcss.com). Configuration is in [tailwind.config.ts](mdc:tailwind.config.ts) and PostCSS config is in [postcss.config.js](mdc:postcss.config.js). Global styles might be in `app/globals.css` (please verify).
+- **Routing & Pages**: The application structure likely follows the Next.js App Router pattern, located in the [app/](mdc:app) directory. The main entry point could be [app/page.tsx](mdc:app/page.tsx).
+- **UI Components**: Reusable UI components are likely located in the [components/](mdc:components) directory. The project uses `shadcn/ui` conventions, as indicated by [components.json](mdc:components.json) and dependencies like `@radix-ui/*`, `clsx`, `tailwind-merge`, and `tailwindcss-animate`. Core UI components might be in `components/ui/`.
+- **Utilities**: Helper functions or utilities might be in the [lib/](mdc:lib) directory.
+- **Hooks**: Custom React hooks might be defined in the [hooks/](mdc:hooks) directory.
+- **Linting**: ESLint configuration is in [.eslintrc.json](mdc:.eslintrc.json).
+- **Git Ignore**: Files ignored by Git are listed in [.gitignore](mdc:.gitignore).
