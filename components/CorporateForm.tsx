@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Check, AlertCircle, Plus, Minus, Copy, CopyCheck } from "lucide-react";
 import type { FormSchema } from "@/lib/validation";
 import { formSchema, calculateByteLength } from "@/lib/validation";
-import { generateStellarTransaction } from "@/lib/stellar";
+import { generateStellarTransaction } from "@/lib/stellar/index";
 import { uploadFile } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import {

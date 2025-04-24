@@ -2,7 +2,7 @@
 
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TAGS } from "@/lib/stellar";
+import { TAGS } from "@/lib/stellar/index";
 
 interface TagSelectorProps {
   value: string[] | undefined;

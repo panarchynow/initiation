@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { StrKey } from "stellar-sdk";
-import { TAGS, getTagIds } from "./stellar";
+import { TAGS, getTagIds } from "./stellar/index";
 
 // Calculate UTF-8 byte length of a string
 export function calculateByteLength(str: string): number {
