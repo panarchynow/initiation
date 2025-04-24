@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Check, AlertCircle, Plus, Minus, Copy, CopyCheck } from "lucide-react";
 import type { FormSchema } from "@/lib/validation";
 import { formSchema, calculateByteLength } from "@/lib/validation";
 import { generateStellarTransaction } from "@/lib/stellar/index";
+import { fetchAccountDataAttributes } from "@/lib/stellar/account";
+import { MANAGE_DATA_KEYS } from "@/lib/stellar/transactionBuilder";
+import { getTagByKey } from "@/lib/stellar/tags";
+import { extractMyPartId, formatMyPartKey } from "@/lib/stellar/mypart";
+import { StrKey } from "stellar-sdk";
 import { uploadFile } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +31,9 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import TagSelector from "@/components/form/TagSelector";
 import FileUploadField from "@/components/form/FileUploadField";
+import { createStellarServer } from "@/lib/stellar/server";
+import * as StellarSdk from "stellar-sdk";
+import { STELLAR_CONFIG } from "@/lib/stellar/config";
 
 export default function CorporateForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +43,13 @@ export default function CorporateForm() {
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
   const [uploadedFileInfo, setUploadedFileInfo] = useState<{ name: string; size: number } | null>(null);
   const [isFileUploaded, setIsFileUploaded] = useState(false);
+  
+  // Новые состояния для загрузки данных аккаунта
+  const [isFetchingAccountData, setIsFetchingAccountData] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [accountDataAttributes, setAccountDataAttributes] = useState<Record<string, string | Buffer>>({});
+  const [lastFetchedAccountId, setLastFetchedAccountId] = useState<string | null>(null);
+  const [originalFormData, setOriginalFormData] = useState<Partial<FormSchema>>({});
   
   // Ref для блока с транзакцией
   const transactionCardRef = useRef<HTMLDivElement>(null);
@@ -66,10 +81,158 @@ export default function CorporateForm() {
   });
 
   // Initialize field array for MyPart fields
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "myParts",
   });
+
+  // Функция для заполнения формы данными из блокчейна
+  const populateForm = useCallback((dataAttributes: Record<string, string | Buffer>) => {
+    try {
+      console.log('Starting form population with data:', dataAttributes);
+      
+      // Создаем объект для хранения оригинальных данных
+      const original: {
+        name?: string;
+        about?: string;
+        website?: string;
+        contractIPFSHash?: string;
+        telegramPartChatID?: string;
+        myParts?: Array<{id: string, accountId: string}>;
+        tags?: string[];
+      } = {};
+      
+      // Обрабатываем стандартные поля
+      const mappings = {
+        [MANAGE_DATA_KEYS.NAME]: "name",
+        [MANAGE_DATA_KEYS.ABOUT]: "about",
+        [MANAGE_DATA_KEYS.WEBSITE]: "website",
+        [MANAGE_DATA_KEYS.CONTRACT_IPFS]: "contractIPFSHash",
+        [MANAGE_DATA_KEYS.TELEGRAM_PART_CHAT_ID]: "telegramPartChatID",
+      };
+      
+      // Сначала устанавливаем известные поля
+      for (const [attrKey, formKey] of Object.entries(mappings)) {
+        const value = dataAttributes[attrKey];
+        if (value) {
+          try {
+            const stringValue = Buffer.isBuffer(value) ? value.toString('utf8') : value;
+            console.log(`Setting form field ${formKey} with value:`, stringValue);
+            form.setValue(formKey as keyof FormSchema, stringValue, { shouldValidate: true });
+            // Сохраняем оригинальное значение
+            original[formKey as keyof FormSchema] = stringValue;
+          } catch (error) {
+            console.error(`Error setting form field ${formKey}:`, error);
+          }
+        }
+      }
+      
+      // Обрабатываем MyPart
+      try {
+        const myPartKeys = Object.keys(dataAttributes).filter(key => key.startsWith('MyPart') && /^MyPart\d+$/.test(key));
+        console.log('Found MyPart keys:', myPartKeys);
+        
+        if (myPartKeys.length > 0) {
+          const myParts = myPartKeys.map(key => {
+            const id = String(extractMyPartId(key) || "0");
+            const value = dataAttributes[key];
+            const accountId = Buffer.isBuffer(value) ? value.toString('utf8') : String(value);
+            return { id, accountId };
+          }).sort((a, b) => Number(a.id) - Number(b.id));
+          
+          console.log('Mapped MyParts:', myParts);
+          
+          // Обновляем массив в форме
+          replace(myParts.length > 0 ? myParts : [{ id: "1", accountId: "" }]);
+          // Сохраняем оригинальное значение
+          original.myParts = JSON.parse(JSON.stringify(myParts));
+        }
+      } catch (error) {
+        console.error('Error processing MyPart data:', error);
+      }
+      
+      // Обрабатываем теги
+      try {
+        const tagKeys = Object.keys(dataAttributes).filter(key => key.startsWith('Tag'));
+        console.log('Found Tag keys:', tagKeys);
+        
+        const tagIds: string[] = [];
+        
+        for (const key of tagKeys) {
+          const tag = getTagByKey(key);
+          if (tag) {
+            tagIds.push(tag.id);
+          }
+        }
+        
+        console.log('Collected tag IDs:', tagIds);
+        
+        if (tagIds.length > 0) {
+          form.setValue('tags', tagIds, { shouldValidate: true });
+          // Сохраняем оригинальное значение
+          original.tags = [...tagIds];
+        }
+      } catch (error) {
+        console.error('Error processing Tag data:', error);
+      }
+      
+      // Сохраняем оригинальные данные
+      setOriginalFormData(original);
+      
+      // Данные загружены успешно
+      toast.success("Account data loaded successfully");
+    } catch (error) {
+      console.error("Error populating form:", error);
+      toast.error("Error populating form with account data");
+    }
+  }, [form, replace]);
+
+  // Функция для загрузки данных аккаунта
+  const fetchAccountData = useCallback(async (accountId: string) => {
+    // Проверяем валидность ID
+    if (!accountId || !StrKey.isValidEd25519PublicKey(accountId)) {
+      if (accountId && accountId.length > 10) {
+        toast.error("Введенный Account ID не является валидным Stellar адресом");
+        setFetchError("Invalid Stellar Account ID format");
+      }
+      console.log('AccountID is empty or invalid:', { accountId, isValid: accountId ? StrKey.isValidEd25519PublicKey(accountId) : false });
+      return;
+    }
+    
+    // Не загружаем повторно, если данные для этого аккаунта уже были загружены
+    if (accountId === lastFetchedAccountId) {
+      console.log('AccountID already fetched:', accountId);
+      return;
+    }
+    
+    console.log('Fetching data for AccountID:', accountId);
+    setIsFetchingAccountData(true);
+    setFetchError(null);
+    
+    try {
+      console.log('Calling fetchAccountDataAttributes...');
+      const data = await fetchAccountDataAttributes(accountId);
+      console.log('Fetch result:', data);
+      setAccountDataAttributes(data);
+      
+      // Проверяем, есть ли данные
+      if (Object.keys(data).length > 0) {
+        console.log('Data found, populating form...');
+        populateForm(data);
+        setLastFetchedAccountId(accountId);
+      } else {
+        console.log('No data found for this account');
+        setFetchError("No data found for this account");
+        toast.info("No existing data found for this account");
+      }
+    } catch (error) {
+      console.error("Error fetching account data:", error);
+      setFetchError("Error loading account data");
+      toast.error("Error fetching account data from blockchain");
+    } finally {
+      setIsFetchingAccountData(false);
+    }
+  }, [lastFetchedAccountId, populateForm]);
 
   // Add new MyPart field
   const addMyPart = () => {
@@ -107,9 +270,177 @@ export default function CorporateForm() {
         return;
       }
       
-      const xdr = await generateStellarTransaction(data);
-      setTransactionXDR(xdr);
-      toast.success("Transaction generated successfully!");
+      // Создаём объект только с изменёнными данными, если есть оригинальные данные
+      const changedData: FormSchema = { ...data };
+      
+      if (Object.keys(originalFormData).length > 0) {
+        // Проверяем и обрабатываем стандартные поля
+        if (originalFormData.name === data.name) {
+          changedData.name = "";
+        }
+        
+        if (originalFormData.about === data.about) {
+          changedData.about = "";
+        }
+        
+        if (originalFormData.website === data.website) {
+          changedData.website = "";
+        }
+        
+        if (originalFormData.contractIPFSHash === data.contractIPFSHash) {
+          changedData.contractIPFSHash = "";
+        }
+        
+        if (originalFormData.telegramPartChatID === data.telegramPartChatID) {
+          changedData.telegramPartChatID = "";
+        }
+        
+        // My Parts требуют особой обработки, так как это массив
+        let deletedMyParts: Array<{id: string, accountId: string}> = [];
+        
+        if (originalFormData.myParts && originalFormData.myParts.length > 0) {
+          // Находим удаленные MyParts
+          const currentMyPartIds = new Set(data.myParts.map(part => part.accountId));
+          deletedMyParts = originalFormData.myParts.filter(part => 
+            part.accountId && !currentMyPartIds.has(part.accountId)
+          );
+          
+          console.log("Deleted MyParts:", deletedMyParts);
+        }
+        
+        // Tags также требуют особой обработки
+        if (originalFormData.tags && originalFormData.tags.length > 0) {
+          const originalTagsStr = JSON.stringify([...originalFormData.tags].sort());
+          const currentTagsStr = JSON.stringify([...data.tags].sort());
+          if (originalTagsStr === currentTagsStr) {
+            changedData.tags = [];
+          }
+        }
+        
+        console.log("Original data:", originalFormData);
+        console.log("Current data:", data);
+        console.log("Changed data:", changedData);
+        
+        // Обрабатываем удаленные MyParts если есть
+        if (deletedMyParts.length > 0) {
+          try {
+            // Загружаем существующий аккаунт
+            const server = createStellarServer();
+            const accountData = await server.loadAccount(data.accountId);
+            
+            // Создаем новую транзакцию для всех изменений
+            const transaction = new StellarSdk.TransactionBuilder(accountData, {
+              fee: STELLAR_CONFIG.BASE_FEE,
+              networkPassphrase: STELLAR_CONFIG.NETWORK,
+            })
+            .setTimeout(STELLAR_CONFIG.TIMEOUT_MINUTES * 60);
+            
+            // Добавляем операции для основных полей (только если они изменились)
+            if (changedData.name && changedData.name !== "") {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.NAME,
+                  value: changedData.name
+                })
+              );
+            }
+            
+            if (changedData.about && changedData.about !== "") {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.ABOUT,
+                  value: changedData.about
+                })
+              );
+            }
+            
+            if (changedData.website) {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.WEBSITE,
+                  value: changedData.website
+                })
+              );
+            }
+            
+            // Добавляем новые MyParts
+            for (const part of changedData.myParts) {
+              if (part.accountId && part.accountId !== "") {
+                const existingPartId = originalFormData.myParts?.find(p => p.accountId === part.accountId)?.id;
+                if (!existingPartId) {
+                  // Это новый MyPart, нужно добавить
+                  // Здесь нужна логика для генерации новых ID, но мы оставим это на транзакцию из generateStellarTransaction
+                }
+              }
+            }
+            
+            // Добавляем операции для удаления MyParts (set value to null)
+            for (const part of deletedMyParts) {
+              const key = formatMyPartKey(part.id);
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: key,
+                  value: null // null означает удаление
+                })
+              );
+            }
+            
+            // Добавляем остальные поля
+            if (changedData.telegramPartChatID) {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.TELEGRAM_PART_CHAT_ID,
+                  value: changedData.telegramPartChatID
+                })
+              );
+            }
+            
+            if (changedData.contractIPFSHash) {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.CONTRACT_IPFS,
+                  value: changedData.contractIPFSHash
+                })
+              );
+            }
+            
+            // Обрабатываем теги
+            if (changedData.tags && changedData.tags.length > 0) {
+              for (const tagId of changedData.tags) {
+                const tag = getTagByKey(tagId);
+                if (tag && data.accountId) {
+                  transaction.addOperation(
+                    StellarSdk.Operation.manageData({
+                      name: tag.key,
+                      value: data.accountId
+                    })
+                  );
+                }
+              }
+            }
+            
+            // Строим транзакцию
+            const combinedXdr = transaction.build().toXDR();
+            
+            // Устанавливаем XDR
+            setTransactionXDR(combinedXdr);
+            toast.success("Transaction generated successfully!");
+            return;
+          } catch (error) {
+            console.error("Error creating combined transaction:", error);
+          }
+        }
+        
+        // Обычная генерация транзакции, если нет удаленных MyParts или произошла ошибка
+        const xdr = await generateStellarTransaction(changedData);
+        setTransactionXDR(xdr);
+        toast.success("Transaction generated successfully!");
+      } else {
+        // Получаем XDR для всех данных, если нет оригинальных
+        const xdr = await generateStellarTransaction(data);
+        setTransactionXDR(xdr);
+        toast.success("Transaction generated successfully!");
+      }
     } catch (error) {
       console.error("Error submitting form:", error);
       
@@ -180,15 +511,46 @@ export default function CorporateForm() {
                     <FormItem>
                       <FormLabel>Account ID *</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Enter Stellar account ID"
-                          {...field}
-                          className="input-glow"
-                        />
+                        <div className="relative">
+                          <Input
+                            placeholder="Enter Stellar account ID"
+                            {...field}
+                            className={`input-glow ${isFetchingAccountData ? 'pr-10' : ''}`}
+                            onBlur={(e) => {
+                              const accountId = e.target.value.trim();
+                              if (accountId) {
+                                fetchAccountData(accountId);
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const accountId = e.currentTarget.value.trim();
+                                if (accountId) {
+                                  fetchAccountData(accountId);
+                                }
+                              }
+                            }}
+                          />
+                          {isFetchingAccountData && (
+                            <div className="absolute inset-y-0 right-3 flex items-center">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
                       </FormControl>
                       <FormDescription>
                         Your Stellar public account ID
+                        {isFetchingAccountData && (
+                          <span className="ml-2 text-primary animate-pulse">Loading account data...</span>
+                        )}
                       </FormDescription>
+                      {fetchError && (
+                        <div className="flex items-center gap-2 text-amber-500 text-sm mt-1">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>{fetchError}</span>
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

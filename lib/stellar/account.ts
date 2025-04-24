@@ -10,23 +10,28 @@ export async function fetchAccountDataAttributes(
   server = createStellarServer()
 ): Promise<Record<string, string | Buffer>> {
   try {
+    console.log('Fetching account data for:', publicKey);
     // Используем loadAccount для получения полной информации об аккаунте
     const account = await server.loadAccount(publicKey);
+    console.log('Account loaded:', account);
     
     // Stellar может хранить data entries в разных форматах в зависимости от SDK версии
     // Проверим возможные варианты хранения и выберем правильный
     let accountData: Record<string, string | Buffer | unknown> = {};
     
     if (account.data && typeof account.data === 'object') {
+      console.log('Using account.data');
       accountData = account.data;
     } else if ((account as Account & {data_attr?: Record<string, unknown>}).data_attr && 
               typeof (account as Account & {data_attr?: Record<string, unknown>}).data_attr === 'object') {
+      console.log('Using account.data_attr');
       accountData = (account as Account & {data_attr?: Record<string, unknown>}).data_attr || {};
     } else {
       // Получим data entries через data_entries если они есть
       try {
         // @ts-ignore
         if (account.data_entries && Array.isArray(account.data_entries)) {
+          console.log('Using account.data_entries');
           // @ts-ignore
           for (const entry of account.data_entries) {
             if (entry.name && entry.value) {
@@ -35,9 +40,11 @@ export async function fetchAccountDataAttributes(
           }
         }
       } catch (e) {
-        // Error accessing data_entries
+        console.error('Error accessing data_entries:', e);
       }
     }
+    
+    console.log('Raw account data:', accountData);
     
     // Данные data entries хранятся в свойстве data аккаунта
     const dataAttributes: Record<string, string | Buffer> = {};
@@ -51,15 +58,18 @@ export async function fetchAccountDataAttributes(
           dataAttributes[key] = value;
         }
       } catch (e) {
-        // Error processing data entry
+        console.error(`Error processing data entry ${key}:`, e);
       }
     }
+    
+    console.log('Processed data attributes:', Object.keys(dataAttributes));
     
     // Проверка наличия MyPart ключей в данных
     findExistingMyPartKeys(dataAttributes);
     
     return dataAttributes;
   } catch (error) {
+    console.error('Error in fetchAccountDataAttributes:', error);
     // В случае ошибки возвращаем пустой объект
     return {};
   }

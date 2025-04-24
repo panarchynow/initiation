@@ -38,7 +38,8 @@ function addManageDataOperation(
   value: string | undefined,
   operationFactory: OperationFactory
 ) {
-  if (!value) return;
+  // Если значение пустое или undefined, считаем, что оно не изменилось и не добавляем операцию
+  if (!value || value === "") return;
   
   transaction.addOperation(
     operationFactory.manageData({
