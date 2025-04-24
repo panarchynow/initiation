@@ -1,0 +1,85 @@
+---
+description: 
+globs: **/*.spec.ts
+alwaysApply: false
+---
+# Bun Testing Guide
+
+## Overview
+Bun has a built-in test runner that uses a Jest-compatible API. Tests are run using the `bun test` command.
+
+## File Patterns
+Bun Test automatically finds and runs test files matching the following patterns:
+- `*.test.{js|jsx|ts|tsx}`
+- `*_test.{js|jsx|ts|tsx}`
+- `*.spec.{js|jsx|ts|tsx}`
+- `*_spec.{js|jsx|ts|tsx}`
+
+## Basic Usage
+```typescript
+import { test, expect } from "bun:test";
+
+test("2 + 2", () => {
+  expect(2 + 2).toBe(4);
+});
+```
+
+## Testing Structures
+Tests can be organized into groups using `describe`:
+
+```typescript
+import { test, expect, describe } from "bun:test";
+
+describe("arithmetic", () => {
+  test("addition", () => {
+    expect(2 + 2).toBe(4);
+  });
+
+  test("multiplication", () => {
+    expect(2 * 2).toBe(4);
+  });
+});
+```
+
+## Mocking
+Bun provides the ability to create function mocks:
+
+```typescript
+import { test, expect, mock } from "bun:test";
+
+const mockFn = mock(() => "mocked value");
+
+test("mock function", () => {
+  const result = mockFn();
+  expect(result).toBe("mocked value");
+  expect(mockFn).toHaveBeenCalled();
+});
+```
+
+For mocking modules, use `mock.module`:
+
+```typescript
+import { mock } from "bun:test";
+import { someFunction } from "./module";
+
+mock.module("./module", () => ({
+  someFunction: () => "mocked"
+}));
+```
+
+## Asynchronous Tests
+Tests can be asynchronous:
+
+```typescript
+import { test, expect } from "bun:test";
+
+test("async test", async () => {
+  const result = await Promise.resolve(42);
+  expect(result).toBe(42);
+});
+```
+
+## Running Tests
+- Run all tests: `bun test`
+- Run a specific file: `bun test ./path/to/file.test.ts`
+- Run tests with a specific name: `bun test --test-name-pattern "name"`
