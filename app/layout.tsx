@@ -15,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={`${jetbrainsMono.className} crt`}>{children}</body>
+    <html lang="en" suppressHydrationWarning={true}>
+      <body className={`${jetbrainsMono.className} crt`} suppressHydrationWarning={true}>{children}</body>
     </html>
   );
 }

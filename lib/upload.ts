@@ -42,10 +42,9 @@ async function mockFileUpload(file: File): Promise<{
   return new Promise((resolve) => {
     // Simulate network delay
     setTimeout(() => {
-      // Generate a mock IPFS hash
-      // Real IPFS hashes typically start with "Qm" for CIDv0
-      const randomSuffix = Math.random().toString(36).substring(2, 8);
-      const mockHash = `QmP7jHG2QhqbcNRMJxzwe${randomSuffix}`;
+      // Use a deterministic hash instead of random generation
+      // This avoids hydration mismatch between server and client
+      const mockHash = "QmP7jHG2QhqbcNRMJxzwe123456";
       
       resolve({
         success: true,

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Check, AlertCircle, Plus, Minus } from "lucide-react";
-import { FormSchema, formSchema } from "@/lib/validation";
+import type { FormSchema } from "@/lib/validation";
+import { formSchema } from "@/lib/validation";
 import { generateStellarTransaction } from "@/lib/stellar";
 import { uploadFile } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
@@ -219,7 +220,7 @@ export default function CorporateForm() {
                             <div className="flex items-center gap-2">
                               <FormControl>
                                 <Input
-                                  placeholder={`Enter account ID for part ${field.id}`}
+                                  placeholder={`Enter account ID for part ${index + 1}`}
                                   {...accountField}
                                   className="input-glow"
                                 />
