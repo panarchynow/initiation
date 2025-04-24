@@ -2,22 +2,7 @@
 
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// Predefined tags that can be selected
-const AVAILABLE_TAGS = [
-  { id: "finance", label: "Finance" },
-  { id: "technology", label: "Technology" },
-  { id: "healthcare", label: "Healthcare" },
-  { id: "education", label: "Education" },
-  { id: "retail", label: "Retail" },
-  { id: "manufacturing", label: "Manufacturing" },
-  { id: "services", label: "Services" },
-  { id: "media", label: "Media" },
-  { id: "energy", label: "Energy" },
-  { id: "transportation", label: "Transportation" },
-  { id: "real-estate", label: "Real Estate" },
-  { id: "blockchain", label: "Blockchain" },
-];
+import { TAGS } from "@/lib/stellar";
 
 interface TagSelectorProps {
   value: string[] | undefined;
@@ -37,7 +22,7 @@ export default function TagSelector({ value = [], onChange }: TagSelectorProps) 
 
   return (
     <div className="flex flex-wrap gap-2">
-      {AVAILABLE_TAGS.map((tag) => {
+      {Object.values(TAGS).map((tag) => {
         const isSelected = value?.includes(tag.id) || false;
         
         return (

@@ -4,6 +4,65 @@ import type { FormSchema } from "./validation";
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { Horizon } from '@stellar/stellar-sdk';
 
+// Управление тегами - единый источник истины для всего приложения
+export interface TagDefinition {
+  // Ключ для Stellar ManageData operation
+  key: string;
+  // ID для внутреннего использования в формах
+  id: string;
+  // Человекочитаемое имя для отображения
+  label: string;
+}
+
+// Базовые ключевые слова для тегов
+export const TAG_NAMES = ["Belgrade", "Montenegro", "Programmer", "Blogger"];
+
+// Функции форматирования тегов
+export const formatTagKey = (name: string): string => `Tag${name}`;
+export const formatTagId = (name: string): string => name.toLowerCase();
+export const formatTagLabel = (name: string): string => 
+  name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+
+// Получить полное определение тега по имени
+export const getTagDefinition = (name: string): TagDefinition => {
+  return {
+    key: formatTagKey(name),
+    id: formatTagId(name),
+    label: formatTagLabel(name)
+  };
+};
+
+// Динамическое создание объекта TAGS на основе имен
+export const TAGS: Record<string, TagDefinition> = (() => {
+  const result: Record<string, TagDefinition> = {};
+  for (const name of TAG_NAMES) {
+    result[name.toUpperCase()] = getTagDefinition(name);
+  }
+  return result;
+})();
+
+// Вспомогательные функции для работы с тегами
+export const getTagIds = () => Object.values(TAGS).map(tag => tag.id);
+export const getTagKeys = () => Object.values(TAGS).map(tag => tag.key);
+export const getTagByKey = (key: string) => Object.values(TAGS).find(tag => tag.key === key);
+export const getTagById = (id: string) => Object.values(TAGS).find(tag => tag.id === id);
+
+// ManageData operation keys
+export const MANAGE_DATA_KEYS = {
+  NAME: "Name",
+  ABOUT: "About",
+  WEBSITE: "Website",
+  TELEGRAM_PART_CHAT_ID: "TelegramPartChatID",
+  CONTRACT_IPFS: "ContractIPFS"
+};
+
+// Function to format MyPart ID with leading zeros
+export function formatMyPartKey(id: string): string {
+  // Pad with leading zeros to make it 3 digits
+  const paddedId = id.padStart(3, '0');
+  return `MyPart${paddedId}`;
+}
+
 // Stellar configuration
 const STELLAR_CONFIG = {
   SERVER_URL: "https://horizon-testnet.stellar.org",
@@ -49,24 +108,31 @@ export async function buildTransaction(
   transaction.setTimeout(config.TIMEOUT_MINUTES * 60);
 
   // Required fields
-  addManageDataOperation(transaction, "Name", formData.name);
-  addManageDataOperation(transaction, "About", formData.about);
+  addManageDataOperation(transaction, MANAGE_DATA_KEYS.NAME, formData.name);
+  addManageDataOperation(transaction, MANAGE_DATA_KEYS.ABOUT, formData.about);
   
   // Optional fields
-  addManageDataOperation(transaction, "Website", formData.website);
+  addManageDataOperation(transaction, MANAGE_DATA_KEYS.WEBSITE, formData.website);
   
   // Handle multiple MyPart entries
   for (const part of formData.myParts) {
-    addManageDataOperation(transaction, `MyPart_${part.id}`, part.accountId);
+    addManageDataOperation(transaction, formatMyPartKey(part.id), part.accountId);
   }
 
-  addManageDataOperation(transaction, "TelegramPartChatID", formData.telegramPartChatID);
+  addManageDataOperation(transaction, MANAGE_DATA_KEYS.TELEGRAM_PART_CHAT_ID, formData.telegramPartChatID);
   
-  if (formData.tags && formData.tags.length > 0) {
-    addManageDataOperation(transaction, "Tags", JSON.stringify(formData.tags));
+  // Handle tags - add individual tag operations if the tag is selected
+  if (formData.tags && formData.tags.length > 0 && formData.accountId) {
+    // Для каждого тега в форме, найдем соответствующий тег в TAGS
+    for (const tagId of formData.tags) {
+      const tag = getTagById(tagId);
+      if (tag) {
+        addManageDataOperation(transaction, tag.key, formData.accountId);
+      }
+    }
   }
   
-  addManageDataOperation(transaction, "ContractIPFS", formData.contractIPFSHash);
+  addManageDataOperation(transaction, MANAGE_DATA_KEYS.CONTRACT_IPFS, formData.contractIPFSHash);
 
   // Build the transaction
   return transaction.build();

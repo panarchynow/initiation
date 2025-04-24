@@ -1,6 +1,14 @@
 import { expect, test, describe, beforeEach, afterEach, mock } from "bun:test";
 import * as StellarSdk from '@stellar/stellar-sdk';
-import { buildTransaction, createStellarServer, verifyTransactionXDR, generateStellarTransaction } from "./stellar";
+import { 
+  buildTransaction, 
+  createStellarServer, 
+  verifyTransactionXDR, 
+  generateStellarTransaction, 
+  MANAGE_DATA_KEYS, 
+  formatMyPartKey,
+  TAGS
+} from "./stellar";
 import type { FormSchema } from "./validation";
 
 // Мок для TransactionBuilder
@@ -67,6 +75,14 @@ describe("Stellar functions", () => {
     globalThis.createStellarServer = originalCreateStellarServer;
   });
 
+  describe("formatMyPartKey", () => {
+    test("should format MyPart key with leading zeros", () => {
+      expect(formatMyPartKey("1")).toBe("MyPart001");
+      expect(formatMyPartKey("12")).toBe("MyPart012");
+      expect(formatMyPartKey("123")).toBe("MyPart123");
+    });
+  });
+
   describe("buildTransaction", () => {
     test("should build transaction with all required fields", async () => {
       // Arrange
@@ -93,17 +109,17 @@ describe("Stellar functions", () => {
       
       // Проверяем вызовы manageData для каждого поля
       expect(mockManageData).toHaveBeenCalledWith({
-        name: "Name",
+        name: MANAGE_DATA_KEYS.NAME,
         value: "Test Project"
       });
       
       expect(mockManageData).toHaveBeenCalledWith({
-        name: "About",
+        name: MANAGE_DATA_KEYS.ABOUT,
         value: "This is a test project"
       });
       
       expect(mockManageData).toHaveBeenCalledWith({
-        name: "MyPart_1",
+        name: "MyPart001",
         value: "GA2C5RFPE6GCKMY3US5PAB6UZLKIGSPIUKSLRB6Q7Z5QQHBHQC4QLGHM"
       });
     });
@@ -116,7 +132,7 @@ describe("Stellar functions", () => {
         accountId: "GDNF5ICFVDJTIWLCBSG7UFCPWZON3CX3GLSUUHWFLGZV3NKFGNZSNOMU",
         website: "https://test.com",
         telegramPartChatID: "123456789",
-        tags: ["tag1", "tag2"],
+        tags: ["belgrade", "montenegro", "programmer"],
         contractIPFSHash: "QmTest123",
         myParts: [
           { id: "1", accountId: "GA2C5RFPE6GCKMY3US5PAB6UZLKIGSPIUKSLRB6Q7Z5QQHBHQC4QLGHM" },
@@ -130,37 +146,49 @@ describe("Stellar functions", () => {
 
       // Assert
       // Проверяем, что addOperation вызван для всех полей
-      expect(mockAddOperation).toHaveBeenCalledTimes(8); // 2 основных + 6 опциональных
+      // 2 основных + 2 MyPart + 3 тега + 3 опциональных (website, telegramPartChatID, contractIPFS)
+      expect(mockAddOperation).toHaveBeenCalledTimes(10);
       
       // Проверяем вызовы для дополнительных полей
       expect(mockManageData).toHaveBeenCalledWith({
-        name: "Website",
+        name: MANAGE_DATA_KEYS.WEBSITE,
         value: "https://test.com"
       });
       
       expect(mockManageData).toHaveBeenCalledWith({
-        name: "TelegramPartChatID",
+        name: MANAGE_DATA_KEYS.TELEGRAM_PART_CHAT_ID,
         value: "123456789"
       });
       
+      // Проверяем вызовы для тегов
       expect(mockManageData).toHaveBeenCalledWith({
-        name: "Tags",
-        value: JSON.stringify(["tag1", "tag2"])
+        name: TAGS.BELGRADE.key,
+        value: "GDNF5ICFVDJTIWLCBSG7UFCPWZON3CX3GLSUUHWFLGZV3NKFGNZSNOMU"
       });
       
       expect(mockManageData).toHaveBeenCalledWith({
-        name: "ContractIPFS",
+        name: TAGS.MONTENEGRO.key,
+        value: "GDNF5ICFVDJTIWLCBSG7UFCPWZON3CX3GLSUUHWFLGZV3NKFGNZSNOMU"
+      });
+      
+      expect(mockManageData).toHaveBeenCalledWith({
+        name: TAGS.PROGRAMMER.key,
+        value: "GDNF5ICFVDJTIWLCBSG7UFCPWZON3CX3GLSUUHWFLGZV3NKFGNZSNOMU"
+      });
+      
+      expect(mockManageData).toHaveBeenCalledWith({
+        name: MANAGE_DATA_KEYS.CONTRACT_IPFS,
         value: "QmTest123"
       });
       
       // Проверяем оба MyPart
       expect(mockManageData).toHaveBeenCalledWith({
-        name: "MyPart_1",
+        name: "MyPart001",
         value: "GA2C5RFPE6GCKMY3US5PAB6UZLKIGSPIUKSLRB6Q7Z5QQHBHQC4QLGHM"
       });
       
       expect(mockManageData).toHaveBeenCalledWith({
-        name: "MyPart_2",
+        name: "MyPart002",
         value: "GBZR7XMLRBBRRSMXJGRKXGXGZIYDRAXKOMSH3HEPBZWL3RO5KEVPS7CV"
       });
     });
@@ -184,12 +212,12 @@ describe("Stellar functions", () => {
       expect(mockAddOperation).toHaveBeenCalledTimes(2); // только name и about
       
       expect(mockManageData).toHaveBeenCalledWith({
-        name: "Name",
+        name: MANAGE_DATA_KEYS.NAME,
         value: "Test Project"
       });
       
       expect(mockManageData).toHaveBeenCalledWith({
-        name: "About",
+        name: MANAGE_DATA_KEYS.ABOUT,
         value: "This is a test project"
       });
     });
@@ -205,7 +233,10 @@ describe("Stellar functions", () => {
       createStellarServer,
       buildTransaction,
       verifyTransactionXDR,
-      generateStellarTransaction: mockGenerateXDR
+      generateStellarTransaction: mockGenerateXDR,
+      MANAGE_DATA_KEYS,
+      formatMyPartKey,
+      TAGS
     }));
     
     // Arrange

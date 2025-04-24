@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { StrKey } from "stellar-sdk";
+import { TAGS, getTagIds } from "./stellar";
 
 // Calculate UTF-8 byte length of a string
 export function calculateByteLength(str: string): number {
@@ -30,7 +31,7 @@ const validateIPFSHash = (value: string) => {
 
 // Define MyPart schema
 const myPartSchema = z.object({
-  id: z.string(),
+  id: z.string().regex(/^\d+$/, "ID must contain only numbers"),
   accountId: z.string().refine(validateStellarAccountId, {
     message: "Invalid Stellar account ID",
   }),
@@ -65,7 +66,9 @@ export const formSchema = z.object({
     .regex(/^\d*$/, "Must contain only numbers")
     .optional(),
   tags: z
-    .array(z.string())
+    .array(
+      z.enum(getTagIds() as [string, ...string[]])
+    )
     .optional(),
   contractIPFSHash: z
     .string()

@@ -40,7 +40,7 @@ export default function CorporateForm() {
       name: "",
       about: "",
       website: "",
-      myParts: [{ id: "001", accountId: "" }],
+      myParts: [{ id: "1", accountId: "" }],
       telegramPartChatID: "",
       tags: [],
       contractIPFSHash: "",
@@ -56,7 +56,7 @@ export default function CorporateForm() {
 
   // Add new MyPart field
   const addMyPart = () => {
-    const newId = String(fields.length + 1).padStart(3, "0");
+    const newId = String(fields.length + 1);
     append({ id: newId, accountId: "" });
   };
 
