@@ -1,0 +1,165 @@
+"use client";
+
+import { useState } from "react";
+import { UploadCloud, X, File, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+interface FileUploadFieldProps {
+  onUpload: (file: File) => Promise<string | null>;
+}
+
+export default function FileUploadField({ onUpload }: FileUploadFieldProps) {
+  const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Handle file selection
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+      validateAndSetFile(selectedFile);
+    }
+  };
+
+  // Validate file before setting
+  const validateAndSetFile = (selectedFile: File) => {
+    setErrorMessage("");
+    
+    // Check file size (max 1 MiB)
+    if (selectedFile.size > 1048576) {
+      setErrorMessage("File size must be less than 1 MiB");
+      return;
+    }
+    
+    setFile(selectedFile);
+  };
+
+  // Handle file upload
+  const handleUpload = async () => {
+    if (!file) return;
+    
+    setIsUploading(true);
+    setErrorMessage("");
+    
+    try {
+      await onUpload(file);
+    } catch (error) {
+      setErrorMessage("Failed to upload file");
+      console.error("Upload error:", error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle drag events
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+  
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) {
+      validateAndSetFile(droppedFile);
+    }
+  };
+
+  // Remove selected file
+  const removeFile = () => {
+    setFile(null);
+    setErrorMessage("");
+  };
+
+  return (
+    <div className="space-y-4">
+      {!file ? (
+        <div
+          className={`border-2 border-dashed rounded-lg p-8 text-center
+            ${isDragging ? "border-primary bg-primary/5" : "border-border"}
+            hover:border-primary/50 hover:bg-secondary/50 transition-colors
+            cursor-pointer`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => document.getElementById("file-upload")?.click()}
+        >
+          <div className="flex flex-col items-center justify-center space-y-3">
+            <UploadCloud className="h-10 w-10 text-muted-foreground" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium">
+                Drag & drop file here or click to browse
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Max file size: 1 MiB
+              </p>
+            </div>
+          </div>
+          <input
+            id="file-upload"
+            type="file"
+            className="hidden"
+            onChange={handleFileChange}
+            accept="*/*" // Accept any file type
+          />
+        </div>
+      ) : (
+        <div className="border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-md bg-secondary flex items-center justify-center">
+                <File className="h-5 w-5 text-foreground" />
+              </div>
+              <div className="space-y-1 overflow-hidden">
+                <p className="text-sm font-medium truncate">{file.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {(file.size / 1024).toFixed(1)} KB
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={removeFile}
+              disabled={isUploading}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="flex items-center text-destructive text-sm">
+          <AlertCircle className="h-4 w-4 mr-2" />
+          {errorMessage}
+        </div>
+      )}
+
+      {file && (
+        <Button
+          type="button"
+          onClick={handleUpload}
+          disabled={isUploading || !file}
+          className="w-full"
+        >
+          {isUploading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...
+            </>
+          ) : (
+            "Upload to IPFS"
+          )}
+        </Button>
+      )}
+    </div>
+  );
+}
