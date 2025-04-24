@@ -32,6 +32,7 @@ export default function CorporateForm() {
   const [transactionXDR, setTransactionXDR] = useState("");
   const [uploadTab, setUploadTab] = useState("file");
   const [isCopied, setIsCopied] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   // Initialize form
   const form = useForm<FormSchema>({
@@ -59,12 +60,38 @@ export default function CorporateForm() {
   const addMyPart = () => {
     const newId = String(fields.length + 1);
     append({ id: newId, accountId: "" });
+    // Сбрасываем ошибку при добавлении нового поля
+    setDuplicateError(null);
   };
 
   // Form submission handler
   const onSubmit = async (data: FormSchema) => {
     setIsSubmitting(true);
+    // Сначала сбрасываем ошибку
+    setDuplicateError(null);
+    
     try {
+      // Проверяем дубликаты вручную и показываем уведомление
+      const nonEmptyAccountIds = data.myParts
+        .map(part => part.accountId)
+        .filter(id => id !== ""); // Игнорируем пустые
+      
+      const uniqueIds = new Set(nonEmptyAccountIds);
+      
+      // Если есть дубликаты, показываем ошибку
+      if (nonEmptyAccountIds.length !== uniqueIds.size) {
+        // Выводим ошибку в UI
+        setDuplicateError("Все Account ID для My Parts должны быть уникальными!");
+        
+        // Принудительно вызываем toast
+        setTimeout(() => {
+          toast.error("Все Account ID для My Parts должны быть уникальными!");
+        }, 0);
+        
+        setIsSubmitting(false);
+        return;
+      }
+      
       const xdr = await generateStellarTransaction(data);
       setTransactionXDR(xdr);
       toast.success("Transaction generated successfully!");
@@ -251,6 +278,11 @@ export default function CorporateForm() {
                                   placeholder={`Enter account ID for part ${index + 1}`}
                                   {...accountField}
                                   className="input-glow"
+                                  onChange={(e) => {
+                                    accountField.onChange(e);
+                                    // Сбрасываем ошибку при изменении поля
+                                    setDuplicateError(null);
+                                  }}
                                 />
                               </FormControl>
                               {index > 0 && (
@@ -258,7 +290,11 @@ export default function CorporateForm() {
                                   type="button"
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => remove(index)}
+                                  onClick={() => {
+                                    remove(index);
+                                    // Сбрасываем ошибку при удалении поля
+                                    setDuplicateError(null);
+                                  }}
                                   className="shrink-0 text-destructive border-destructive/20"
                                 >
                                   <Minus className="h-4 w-4" />
@@ -271,6 +307,22 @@ export default function CorporateForm() {
                       />
                     </div>
                   ))}
+                  
+                  {/* Отображаем ошибку для массива myParts из состояния */}
+                  {duplicateError && (
+                    <div className="flex items-center gap-2 text-destructive text-sm mt-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>{duplicateError}</span>
+                    </div>
+                  )}
+                  
+                  {/* Отображаем ошибку для массива myParts из валидатора */}
+                  {form.formState.errors.myParts?.root?.message && (
+                    <div className="flex items-center gap-2 text-destructive text-sm mt-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>{form.formState.errors.myParts.root.message}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* TelegramPartChatID Field */}

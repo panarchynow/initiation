@@ -11,7 +11,7 @@ This module handles interactions with the Stellar blockchain, focusing on managi
 -   **`mypart.ts`**: Handles `MyPart` data entries. Provides functions to format keys (`MyPart001`, `MyPart002`), extract IDs from keys, find existing `MyPart` keys in account data, find the highest existing ID, and generate a sequence of new IDs for adding more `MyPart` entries.
 -   **`transactionBuilder.ts`**: Builds a Stellar transaction. `buildTransaction` takes an account object, form data, and existing account attributes. It creates a `TransactionBuilder`, sets timeouts and fees, and adds `manageData` operations based on the form data:
     -   Maps form fields (`name`, `about`, `website`, etc.) to predefined data entry keys (`MANAGE_DATA_KEYS`).
-    -   Handles `MyPart` entries by generating new sequential IDs using `mypart.ts` and adding `manageData` operations for each.
+    -   Handles `MyPart` entries by filtering out duplicates (both from the submitted form and existing blockchain data) and generating new sequential IDs using `mypart.ts` only for the unique new entries, then adding `manageData` operations for each.
     -   Handles tags by looking up tag definitions using `tags.ts` and adding `manageData` operations.
     -   Returns the built (but unsigned) transaction.
 -   **`transactionGenerator.ts`**: Orchestrates transaction creation. `generateStellarTransaction` takes form data:
@@ -30,7 +30,7 @@ This module handles interactions with the Stellar blockchain, focusing on managi
 3.  It loads the Stellar account specified in the form data.
 4.  It fetches the account's current data entries using `fetchAccountDataAttributes`.
 5.  It calls `buildTransaction`, passing the account, form data, and fetched data attributes.
-6.  `buildTransaction` constructs the transaction, adding `manageData` operations for basic info, `MyPart` entries (generating new IDs based on existing ones), and selected `tags`.
+6.  `buildTransaction` constructs the transaction, adding `manageData` operations for basic info, `MyPart` entries (filtering duplicates, generating new IDs based on existing ones), and selected `tags`.
 7.  `generateStellarTransaction` receives the built transaction and converts it to XDR.
 8.  The XDR is typically passed to a wallet (like Freighter) for signing.
 9.  (Implicitly) The signed transaction is submitted to the Stellar network.
