@@ -1,97 +1,92 @@
 "use client";
 
-import { FormSchema } from "./validation";
-import StellarSdk from "stellar-sdk";
+import type { FormSchema } from "./validation";
+import * as StellarSdk from '@stellar/stellar-sdk';
+import { Horizon } from '@stellar/stellar-sdk';
+
+// Stellar configuration
+const STELLAR_CONFIG = {
+  SERVER_URL: "https://horizon-testnet.stellar.org",
+  NETWORK: StellarSdk.Networks.TESTNET,
+  TIMEOUT_MINUTES: 30,
+  BASE_FEE: StellarSdk.BASE_FEE
+};
+
+// Create Stellar server instance
+export function createStellarServer(serverUrl = STELLAR_CONFIG.SERVER_URL) {
+  return new Horizon.Server(serverUrl);
+}
+
+// Add a ManageData operation to transaction
+function addManageDataOperation(
+  transaction: StellarSdk.TransactionBuilder,
+  name: string, 
+  value: string | undefined
+) {
+  if (!value) return;
+  
+  transaction.addOperation(
+    StellarSdk.Operation.manageData({
+      name,
+      value
+    })
+  );
+}
+
+// Build transaction with the provided account and form data
+export async function buildTransaction(
+  account: StellarSdk.Account,
+  formData: FormSchema,
+  config = STELLAR_CONFIG
+) {
+  // Setup a transaction builder
+  const transaction = new StellarSdk.TransactionBuilder(account, {
+    fee: config.BASE_FEE,
+    networkPassphrase: config.NETWORK,
+  });
+
+  // Add a timebound
+  transaction.setTimeout(config.TIMEOUT_MINUTES * 60);
+
+  // Required fields
+  addManageDataOperation(transaction, "Name", formData.name);
+  addManageDataOperation(transaction, "About", formData.about);
+  
+  // Optional fields
+  addManageDataOperation(transaction, "Website", formData.website);
+  
+  // Handle multiple MyPart entries
+  for (const part of formData.myParts) {
+    addManageDataOperation(transaction, `MyPart_${part.id}`, part.accountId);
+  }
+
+  addManageDataOperation(transaction, "TelegramPartChatID", formData.telegramPartChatID);
+  
+  if (formData.tags && formData.tags.length > 0) {
+    addManageDataOperation(transaction, "Tags", JSON.stringify(formData.tags));
+  }
+  
+  addManageDataOperation(transaction, "ContractIPFS", formData.contractIPFSHash);
+
+  // Build the transaction
+  return transaction.build();
+}
 
 // Generate a Stellar transaction with ManageData operations for form data
 export async function generateStellarTransaction(
   formData: FormSchema
 ): Promise<string> {
   try {
-    // Initialize Stellar server (testnet)
-    const server = new StellarSdk.Server("https://horizon-testnet.stellar.org");
+    const server = createStellarServer();
 
     // Use provided account ID or create a placeholder account
     const sourcePublicKey = formData.accountId || StellarSdk.Keypair.random().publicKey();
 
     // Load the account to get the current sequence number
     const account = await server.loadAccount(sourcePublicKey);
-
-    // Setup a transaction builder with the correct sequence
-    const transaction = new StellarSdk.TransactionBuilder(account, {
-      fee: StellarSdk.BASE_FEE,
-      networkPassphrase: StellarSdk.Networks.TESTNET,
-    });
-
-    // Add a timebound (30 minutes)
-    transaction.setTimeout(30 * 60);
-
-    // Required fields
-    transaction.addOperation(
-      StellarSdk.Operation.manageData({
-        name: "Name",
-        value: formData.name,
-      })
-    );
-
-    transaction.addOperation(
-      StellarSdk.Operation.manageData({
-        name: "About",
-        value: formData.about,
-      })
-    );
-
-    // Optional fields - only add if they have values
-    if (formData.website) {
-      transaction.addOperation(
-        StellarSdk.Operation.manageData({
-          name: "Website",
-          value: formData.website,
-        })
-      );
-    }
-
-    // Handle multiple MyPart entries
-    formData.myParts.forEach((part, index) => {
-      transaction.addOperation(
-        StellarSdk.Operation.manageData({
-          name: `MyPart_${part.id}`,
-          value: part.accountId,
-        })
-      );
-    });
-
-    if (formData.telegramPartChatID) {
-      transaction.addOperation(
-        StellarSdk.Operation.manageData({
-          name: "TelegramPartChatID",
-          value: formData.telegramPartChatID,
-        })
-      );
-    }
-
-    if (formData.tags && formData.tags.length > 0) {
-      transaction.addOperation(
-        StellarSdk.Operation.manageData({
-          name: "Tags",
-          value: JSON.stringify(formData.tags),
-        })
-      );
-    }
-
-    if (formData.contractIPFSHash) {
-      transaction.addOperation(
-        StellarSdk.Operation.manageData({
-          name: "ContractIPFS",
-          value: formData.contractIPFSHash,
-        })
-      );
-    }
-
-    // Build the transaction (unsigned)
-    const builtTransaction = transaction.build();
-
-    // Return the transaction XDR
+    
+    // Build and return the transaction XDR
+    const builtTransaction = await buildTransaction(account, formData);
     return builtTransaction.toXDR();
   } catch (error) {
     console.error("Error generating Stellar transaction:", error);
@@ -102,10 +97,10 @@ export async function generateStellarTransaction(
 }
 
 // Function to verify a transaction XDR
-export function verifyTransactionXDR(xdr: string): boolean {
+export function verifyTransactionXDR(xdr: string, network = STELLAR_CONFIG.NETWORK): boolean {
   try {
     // Parse the XDR to verify it's valid
-    const transaction = new StellarSdk.Transaction(xdr, StellarSdk.Networks.TESTNET);
+    new StellarSdk.Transaction(xdr, network);
     return true;
   } catch (error) {
     return false;

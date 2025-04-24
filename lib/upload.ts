@@ -21,6 +21,10 @@ export async function uploadFile(file: File): Promise<string> {
       throw new Error(mockUploadResponse.error || "Upload failed");
     }
     
+    if (!mockUploadResponse.ipfsHash) {
+      throw new Error("No IPFS hash returned from upload service");
+    }
+    
     return mockUploadResponse.ipfsHash;
   } catch (error) {
     console.error("Error uploading file:", error);
@@ -40,8 +44,8 @@ async function mockFileUpload(file: File): Promise<{
     setTimeout(() => {
       // Generate a mock IPFS hash
       // Real IPFS hashes typically start with "Qm" for CIDv0
-      const mockHash = `QmP7jHG2QhqbcNRMJxzwe` + 
-                       Math.random().toString(36).substring(2, 8);
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const mockHash = `QmP7jHG2QhqbcNRMJxzwe${randomSuffix}`;
       
       resolve({
         success: true,

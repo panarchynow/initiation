@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UploadCloud, X, File, Loader2 } from "lucide-react";
+import { UploadCloud, X, File, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface FileUploadFieldProps {
@@ -77,6 +77,13 @@ export default function FileUploadField({ onUpload }: FileUploadFieldProps) {
     setFile(null);
     setErrorMessage("");
   };
+  
+  // Handle keyboard events for accessibility
+  const handleKeyUp = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      document.getElementById("file-upload")?.click();
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -90,6 +97,10 @@ export default function FileUploadField({ onUpload }: FileUploadFieldProps) {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => document.getElementById("file-upload")?.click()}
+          onKeyUp={handleKeyUp}
+          tabIndex={0}
+          role="button"
+          aria-label="Click to select a file"
         >
           <div className="flex flex-col items-center justify-center space-y-3">
             <UploadCloud className="h-10 w-10 text-muted-foreground" />

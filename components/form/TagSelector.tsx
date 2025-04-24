@@ -20,24 +20,25 @@ const AVAILABLE_TAGS = [
 ];
 
 interface TagSelectorProps {
-  value: string[];
+  value: string[] | undefined;
   onChange: (value: string[]) => void;
 }
 
 export default function TagSelector({ value = [], onChange }: TagSelectorProps) {
   // Toggle tag selection
   const toggleTag = (tagId: string) => {
-    if (value.includes(tagId)) {
-      onChange(value.filter((id) => id !== tagId));
+    const currentValue = value || [];
+    if (currentValue.includes(tagId)) {
+      onChange(currentValue.filter((id) => id !== tagId));
     } else {
-      onChange([...value, tagId]);
+      onChange([...currentValue, tagId]);
     }
   };
 
   return (
     <div className="flex flex-wrap gap-2">
       {AVAILABLE_TAGS.map((tag) => {
-        const isSelected = value.includes(tag.id);
+        const isSelected = value?.includes(tag.id) || false;
         
         return (
           <button
