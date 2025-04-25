@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { UploadCloud, X, File, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -21,12 +21,29 @@ export default function FileUploadField({ onUpload, fileInfo }: FileUploadFieldP
   // If external fileInfo is provided, use it to display even without local file
   const hasFileInfo = !!fileInfo || !!file;
   
+  // Handle file upload
+  const handleUpload = useCallback(async () => {
+    if (!file) return;
+    
+    setIsUploading(true);
+    setErrorMessage("");
+    
+    try {
+      await onUpload(file);
+    } catch (error) {
+      setErrorMessage("Failed to upload file");
+      console.error("Upload error:", error);
+    } finally {
+      setIsUploading(false);
+    }
+  }, [file, onUpload]);
+  
   // Start upload automatically when file is selected
   useEffect(() => {
     if (file) {
       handleUpload();
     }
-  }, [file]);
+  }, [file, handleUpload]);
 
   // Handle file selection
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,23 +64,6 @@ export default function FileUploadField({ onUpload, fileInfo }: FileUploadFieldP
     }
     
     setFile(selectedFile);
-  };
-
-  // Handle file upload
-  const handleUpload = async () => {
-    if (!file) return;
-    
-    setIsUploading(true);
-    setErrorMessage("");
-    
-    try {
-      await onUpload(file);
-    } catch (error) {
-      setErrorMessage("Failed to upload file");
-      console.error("Upload error:", error);
-    } finally {
-      setIsUploading(false);
-    }
   };
 
   // Handle drag events

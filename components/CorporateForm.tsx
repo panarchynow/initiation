@@ -642,7 +642,7 @@ export default function CorporateForm() {
                         </div>
                       </FormControl>
                       <FormDescription>
-                        Your company's official name
+                        Your company&apos;s official name
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

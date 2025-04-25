@@ -1,5 +1,7 @@
 "use client";
 
+import type { TransactionBuilder } from 'stellar-sdk';
+
 // Управление тегами - единый источник истины для всего приложения
 export interface TagDefinition {
   // Ключ для Stellar ManageData operation
@@ -81,8 +83,8 @@ export type StellarTransaction = {
  * @param operationFactory - Factory для создания Stellar операций
  * @param tagByIdFn - Функция для получения тега по ID
  */
-export function addTagOperationsToTransaction(
-  transaction: StellarTransaction,
+export function addTagOperationsToTransaction<T extends { addOperation: (...args: any[]) => any }>(
+  transaction: T,
   accountId: string,
   tagIds: string[] | undefined,
   accountDataAttributes: Record<string, string | Buffer>,

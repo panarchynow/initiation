@@ -9,6 +9,55 @@ import { MANAGE_DATA_KEYS } from './transactionBuilder';
 import { getTagById, addTagOperationsToTransaction } from './tags';
 import { formatPartOfKey, generatePartOfIds } from './partof';
 
+// Промежуточная функция для обработки тегов, совместимая с TransactionBuilder
+function addTagsToTransaction(
+  transaction: StellarSdk.TransactionBuilder, 
+  accountId: string,
+  tags: string[] | undefined,
+  accountDataAttributes: Record<string, string | Buffer>
+) {
+  // Получаем существующие теги из данных аккаунта
+  const existingTags = new Set<string>();
+  for (const key in accountDataAttributes) {
+    if (key.startsWith('Tag')) {
+      existingTags.add(key);
+    }
+  }
+  
+  // Создаем набор тегов, которые будут установлены в форме
+  const formTagsSet = new Set<string>();
+  if (tags && tags.length > 0) {
+    for (const tagId of tags) {
+      const tag = getTagById(tagId);
+      if (tag) {
+        formTagsSet.add(tag.key);
+        // Если тег уже существует в аккаунте, не добавляем операцию
+        if (!existingTags.has(tag.key)) {
+          transaction.addOperation(
+            StellarSdk.Operation.manageData({
+              name: tag.key,
+              value: accountId
+            })
+          );
+        }
+      }
+    }
+  }
+  
+  // Находим теги, которые были удалены (существуют в аккаунте, но отсутствуют в форме)
+  for (const existingTag of Array.from(existingTags)) {
+    if (!formTagsSet.has(existingTag)) {
+      // Добавляем операцию для удаления тега (установка в null)
+      transaction.addOperation(
+        StellarSdk.Operation.manageData({
+          name: existingTag,
+          value: null
+        })
+      );
+    }
+  }
+}
+
 // Тип схемы для формы участника
 export type ParticipantFormSchema = {
   accountId: string;
@@ -132,13 +181,11 @@ export async function generateParticipantTransaction(
     
     // Обработка тегов
     if (formData.accountId) {
-      addTagOperationsToTransaction(
+      addTagsToTransaction(
         transaction,
         formData.accountId,
         formData.tags,
-        accountDataAttributes,
-        StellarSdk.Operation,
-        getTagById
+        accountDataAttributes
       );
     }
     

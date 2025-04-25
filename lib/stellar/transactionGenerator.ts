@@ -1,6 +1,7 @@
 "use client";
 
 import { Keypair } from '@stellar/stellar-sdk';
+import type { Transaction } from '@stellar/stellar-sdk';
 import { createStellarServer } from './server';
 import { fetchAccountDataAttributes } from './account';
 import { buildTransaction } from './transactionBuilder';
@@ -28,7 +29,7 @@ export async function generateStellarTransaction(
     const transaction = await buildTransaction(accountData, formData, accountDataAttributes);
     
     // Convert transaction to XDR
-    const xdr = transaction.toXDR();
+    const xdr = (transaction as Transaction).toXDR();
     
     return xdr;
   } catch (error) {
