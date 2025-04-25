@@ -23,12 +23,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import TagSelector from "@/components/form/TagSelector";
-import FileUploadField from "@/components/form/FileUploadField";
-import { uploadFile } from "@/lib/upload";
 import { createStellarServer } from "@/lib/stellar/server";
 import * as StellarSdk from "stellar-sdk";
 import { STELLAR_CONFIG } from "@/lib/stellar/config";
@@ -172,11 +169,8 @@ const getTagById = (key: string) => {
 export default function ParticipantForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transactionXDR, setTransactionXDR] = useState("");
-  const [uploadTab, setUploadTab] = useState("file");
   const [isCopied, setIsCopied] = useState(false);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
-  const [uploadedFileInfo, setUploadedFileInfo] = useState<{ name: string; size: number } | null>(null);
-  const [isFileUploaded, setIsFileUploaded] = useState(false);
   const [telegramBotUrl, setTelegramBotUrl] = useState<string | null>(null);
   const [isTelegramUrlLoading, setIsTelegramUrlLoading] = useState(false);
   
@@ -189,7 +183,7 @@ export default function ParticipantForm() {
   
   // Ref для блока с транзакцией
   const transactionCardRef = useRef<HTMLDivElement>(null);
-
+  
   // Прокрутка к блоку с транзакцией при её генерации
   useEffect(() => {
     if (transactionXDR && transactionCardRef.current) {
@@ -218,14 +212,6 @@ export default function ParticipantForm() {
     },
     mode: "onChange",
   });
-
-  // Проверяем наличие IPFS хеша и устанавливаем соответствующий таб
-  useEffect(() => {
-    const ipfsHash = form.getValues("timeTokenOfferIPFS");
-    if (ipfsHash && ipfsHash.trim() !== "") {
-      setUploadTab("hash");
-    }
-  }, [form]);
 
   // Initialize field array for PartOf fields
   const { fields, append, remove, replace } = useFieldArray({
@@ -275,11 +261,6 @@ export default function ParticipantForm() {
             // Сохраняем оригинальное значение
             if (typeof stringValue === 'string') {
               (original as Record<string, unknown>)[formKey] = stringValue;
-              
-              // Если это IPFS хеш, устанавливаем соответствующий таб
-              if (formKey === "timeTokenOfferIPFS" && stringValue.trim() !== "") {
-                setUploadTab("hash");
-              }
             }
           } catch (error) {
             console.error(`Error setting form field ${formKey}:`, error);
@@ -695,30 +676,6 @@ export default function ParticipantForm() {
     }
   };
 
-  // Handle file upload
-  const handleFileUpload = async (file: File) => {
-    try {
-      // Сохраняем информацию о файле
-      setUploadedFileInfo({
-        name: file.name,
-        size: file.size
-      });
-      
-      const ipfsHash = await uploadFile(file);
-      form.setValue("timeTokenOfferIPFS", ipfsHash, { shouldValidate: true });
-      
-      // Отмечаем, что файл был успешно загружен
-      setIsFileUploaded(true);
-      
-      toast.success("File uploaded successfully");
-      return ipfsHash;
-    } catch (error) {
-      console.error("File upload error:", error);
-      toast.error("Error uploading file");
-      return null;
-    }
-  };
-
   // Функция копирования XDR в буфер обмена
   const copyToClipboard = async () => {
     try {
@@ -1077,53 +1034,26 @@ export default function ParticipantForm() {
                 />
 
                 {/* TimeTokenOfferIPFS Field */}
-                <FormItem className="space-y-4">
-                  <FormLabel>Time Token Offer IPFS (Optional)</FormLabel>
-                  
-                  <Tabs
-                    defaultValue="file"
-                    value={uploadTab}
-                    onValueChange={setUploadTab}
-                    className="w-full"
-                  >
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="file">Upload File</TabsTrigger>
-                      <TabsTrigger value="hash">IPFS Hash</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="file" className="pt-4">
-                      <FileUploadField 
-                        onUpload={handleFileUpload} 
-                        fileInfo={uploadedFileInfo}
-                      />
-                      {form.formState.errors.timeTokenOfferIPFS && (
-                        <p className="text-sm font-medium text-destructive mt-2">
-                          {form.formState.errors.timeTokenOfferIPFS.message}
-                        </p>
-                      )}
-                    </TabsContent>
-                    <TabsContent value="hash" className="pt-4">
-                      <FormField
-                        control={form.control}
-                        name="timeTokenOfferIPFS"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                placeholder="Enter IPFS hash"
-                                {...field}
-                                className="input-glow"
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Enter an existing IPFS hash for your time token offer
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </TabsContent>
-                  </Tabs>
-                </FormItem>
+                <FormField
+                  control={form.control}
+                  name="timeTokenOfferIPFS"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Time Token Offer IPFS (Optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter IPFS hash"
+                          {...field}
+                          className="input-glow"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Enter an existing IPFS hash for your time token offer
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </CardContent>
           </Card>

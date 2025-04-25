@@ -12,7 +12,6 @@ import { MANAGE_DATA_KEYS } from "@/lib/stellar/transactionBuilder";
 import { getTagByKey } from "@/lib/stellar/tags";
 import { extractMyPartId, formatMyPartKey } from "@/lib/stellar/mypart";
 import { StrKey } from "stellar-sdk";
-import { uploadFile } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -24,13 +23,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import TagSelector from "@/components/form/TagSelector";
-import FileUploadField from "@/components/form/FileUploadField";
 import { createStellarServer } from "@/lib/stellar/server";
 import * as StellarSdk from "stellar-sdk";
 import { STELLAR_CONFIG } from "@/lib/stellar/config";
@@ -40,11 +36,8 @@ import { buildSep7TransactionUri } from "@/lib/stellar/sep7UriBuilder";
 export default function CorporateForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transactionXDR, setTransactionXDR] = useState("");
-  const [uploadTab, setUploadTab] = useState("file");
   const [isCopied, setIsCopied] = useState(false);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
-  const [uploadedFileInfo, setUploadedFileInfo] = useState<{ name: string; size: number } | null>(null);
-  const [isFileUploaded, setIsFileUploaded] = useState(false);
   
   // Новые состояния для загрузки данных аккаунта
   const [isFetchingAccountData, setIsFetchingAccountData] = useState(false);
@@ -83,14 +76,6 @@ export default function CorporateForm() {
     },
     mode: "onChange",
   });
-
-  // Проверяем наличие IPFS хеша и устанавливаем соответствующий таб
-  useEffect(() => {
-    const ipfsHash = form.getValues("contractIPFSHash");
-    if (ipfsHash && ipfsHash.trim() !== "") {
-      setUploadTab("hash");
-    }
-  }, [form]);
 
   // Initialize field array for MyPart fields
   const { fields, append, remove, replace } = useFieldArray({
@@ -134,11 +119,6 @@ export default function CorporateForm() {
             // Сохраняем оригинальное значение
             if (typeof stringValue === 'string') {
               (original as Record<string, unknown>)[formKey] = stringValue;
-              
-              // Если это IPFS хеш, устанавливаем соответствующий таб
-              if (formKey === "contractIPFSHash" && stringValue.trim() !== "") {
-                setUploadTab("hash");
-              }
             }
           } catch (error) {
             console.error(`Error setting form field ${formKey}:`, error);
@@ -521,30 +501,6 @@ export default function CorporateForm() {
     }
   };
 
-  // Handle file upload
-  const handleFileUpload = async (file: File) => {
-    try {
-      // Сохраняем информацию о файле
-      setUploadedFileInfo({
-        name: file.name,
-        size: file.size
-      });
-      
-      const ipfsHash = await uploadFile(file);
-      form.setValue("contractIPFSHash", ipfsHash, { shouldValidate: true });
-      
-      // Отмечаем, что файл был успешно загружен
-      setIsFileUploaded(true);
-      
-      toast.success("File uploaded successfully");
-      return ipfsHash;
-    } catch (error) {
-      console.error("File upload error:", error);
-      toast.error("Error uploading file");
-      return null;
-    }
-  };
-
   // Функция копирования XDR в буфер обмена
   const copyToClipboard = async () => {
     try {
@@ -822,53 +778,26 @@ export default function CorporateForm() {
                 />
 
                 {/* ContractIPFS Field */}
-                <FormItem className="space-y-4">
-                  <FormLabel>Contract IPFS (Optional)</FormLabel>
-                  
-                  <Tabs
-                    defaultValue="file"
-                    value={uploadTab}
-                    onValueChange={setUploadTab}
-                    className="w-full"
-                  >
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="file">Upload File</TabsTrigger>
-                      <TabsTrigger value="hash">IPFS Hash</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="file" className="pt-4">
-                      <FileUploadField 
-                        onUpload={handleFileUpload} 
-                        fileInfo={uploadedFileInfo}
-                      />
-                      {form.formState.errors.contractIPFSHash && (
-                        <p className="text-sm font-medium text-destructive mt-2">
-                          {form.formState.errors.contractIPFSHash.message}
-                        </p>
-                      )}
-                    </TabsContent>
-                    <TabsContent value="hash" className="pt-4">
-                      <FormField
-                        control={form.control}
-                        name="contractIPFSHash"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                placeholder="Enter IPFS hash"
-                                {...field}
-                                className="input-glow"
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Enter an existing IPFS hash for your contract
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </TabsContent>
-                  </Tabs>
-                </FormItem>
+                <FormField
+                  control={form.control}
+                  name="contractIPFSHash"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contract IPFS Hash (Optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter IPFS hash"
+                          {...field}
+                          className="input-glow"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Enter an existing IPFS hash for your contract
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </CardContent>
           </Card>
