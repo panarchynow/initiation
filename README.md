@@ -1,30 +1,57 @@
-# Stellar Module Refactoring
+# Stellar Integration Project
 
-## Overview
-This project includes a refactored Stellar blockchain integration module that has been reorganized from a monolithic structure into smaller, more maintainable modules following SOLID principles and best practices.
+## About the Project
+This project is an integration module for working with the Stellar blockchain. The module allows managing Stellar account data through transactions, including adding and modifying data entries on the blockchain.
 
-## Module Structure
-The Stellar integration functionality has been reorganized into separate modules:
+Key features:
+- Tag management (TagBelgrade, TagProgrammer, and others)
+- MyPart records management
+- Stellar transaction building and verification
+- SEP-0007 URI generation
+- Full integration with Stellar wallets
 
-- `lib/stellar/tags.ts` - Tag management for Stellar ManageData operations
-- `lib/stellar/mypart.ts` - MyPart key handling utilities
-- `lib/stellar/config.ts` - Stellar configuration constants
-- `lib/stellar/server.ts` - Stellar server connection
-- `lib/stellar/account.ts` - Account data fetching
-- `lib/stellar/transactionBuilder.ts` - Transaction building
-- `lib/stellar/transactionGenerator.ts` - Transaction generation
-- `lib/stellar/transactionVerifier.ts` - Transaction verification
-- `lib/stellar/index.ts` - Public API exports
+## Technologies
+- **Next.js** - React framework for web applications
+- **React** - UI library
+- **TypeScript** - Typed JavaScript
+- **Stellar SDK** - SDK for Stellar blockchain integration
+- **shadcn/ui** - Component library based on Radix UI
+- **Tailwind CSS** - Utility-first CSS framework
+- **Zod** - Schema validation library
+- **React Hook Form** - Form management library
+- **Bun** - JavaScript runtime & package manager
 
-## Design Principles
-The refactoring follows these key principles:
+## Project Structure
+- `lib/stellar/` - Stellar integration modules
+- `app/` - Next.js application directory
+- `components/` - Reusable React components
+- `hooks/` - Custom React hooks
 
-- **DRY (Don't Repeat Yourself)** - Each piece of knowledge has a single, unambiguous representation
-- **KISS (Keep It Simple, Stupid)** - Simple solutions are preferred over complex ones
-- **YAGNI (You Aren't Gonna Need It)** - Only necessary functionality is implemented
-- **Single Responsibility** - Each module has a single, focused responsibility
-- **Open/Closed** - Modules are open for extension but closed for modification
-- **File size constraints** - No file exceeds 150 lines of code
+## How to Run
 
-## Testing
-Each module has corresponding unit tests located alongside the implementation files with `.spec.ts` extensions.
+### Prerequisites
+- Bun (JavaScript runtime & package manager)
+
+### Installing Dependencies
+```bash
+bun install
+```
+
+### Local Development
+```bash
+bun dev
+```
+
+The application will be available at `http://localhost:3000`.
+
+### Production Build
+```bash
+bun run build
+bun start
+```
+
+## Environment Variables
+- `NEXT_PUBLIC_STELLAR_NETWORK_TYPE` - Stellar network type: 'TESTNET' for test network or 'PUBLIC' for main network (MAINNET). Defaults to PUBLIC.
+
+## License
+MIT
