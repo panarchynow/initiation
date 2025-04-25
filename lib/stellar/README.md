@@ -21,6 +21,10 @@ This module handles interactions with the Stellar blockchain, focusing on managi
     -   Converts the final transaction to XDR format for signing and submission.
     -   Includes error handling for common issues like account not found.
 -   **`transactionVerifier.ts`**: Contains `verifyTransactionXDR` to check if a given XDR string represents a valid Stellar transaction for the configured network.
+-   **`sep7UriBuilder.ts`**: Implements SEP-0007 URI creation for transaction signing:
+    -   `buildSep7TransactionUri`: Builds a `web+stellar:tx?...` URI for transaction signing requests.
+    -   `buildSep7PaymentUri`: Creates a `web+stellar:pay?...` URI for simplified payment requests.
+    -   Includes options for callbacks, messages, network specification, and other SEP-0007 parameters.
 -   **`index.ts`**: Re-exports all necessary functions and types from the other modules for external use.
 
 ## Workflow:
@@ -35,11 +39,13 @@ This module handles interactions with the Stellar blockchain, focusing on managi
 8.  The XDR is typically passed to a wallet (like Freighter) for signing.
 9.  (Implicitly) The signed transaction is submitted to the Stellar network.
 10. `verifyTransactionXDR` can be used (e.g., before signing or after generation) to ensure the XDR is structurally valid.
+11. Alternatively, `buildSep7TransactionUri` can convert a transaction to a SEP-0007 URI for wallet interaction via URL.
 
 ## Key Concepts:
 
 -   **Data Entries**: Key-value pairs stored directly on a Stellar account.
 -   **ManageData Operation**: Stellar operation type used to add, modify, or delete data entries.
--   **Tags**: Predefined categories represented by specific data entry keys (`Tag<Name>`).
+-   **Tags**: Predefined categories represented by specific data entry keys (`Tag<n>`).
 -   **MyPart**: Custom data entries, sequentially numbered (`MyPart<NNN>`), likely representing parts or shares associated with the account.
--   **XDR**: External Data Representation format used by Stellar for transactions. 
+-   **XDR**: External Data Representation format used by Stellar for transactions.
+-   **SEP-0007**: Stellar Ecosystem Proposal defining a URI scheme for requesting transaction signatures from wallets. 

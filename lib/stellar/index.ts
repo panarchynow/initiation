@@ -9,4 +9,5 @@ export * from './server';
 export * from './account';
 export * from './transactionBuilder';
 export * from './transactionGenerator';
-export * from './transactionVerifier'; 
+export * from './transactionVerifier';
+export * from './sep7UriBuilder'; 

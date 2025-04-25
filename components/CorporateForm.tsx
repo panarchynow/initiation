@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Check, AlertCircle, Plus, Minus, Copy, CopyCheck } from "lucide-react";
+import { Loader2, Check, AlertCircle, Plus, Minus, Copy, CopyCheck, ExternalLink } from "lucide-react";
 import type { FormSchema } from "@/lib/validation";
 import { formSchema, calculateByteLength } from "@/lib/validation";
 import { generateStellarTransaction } from "@/lib/stellar/index";
@@ -34,6 +34,8 @@ import FileUploadField from "@/components/form/FileUploadField";
 import { createStellarServer } from "@/lib/stellar/server";
 import * as StellarSdk from "stellar-sdk";
 import { STELLAR_CONFIG } from "@/lib/stellar/config";
+import { addStellarUri } from "@/lib/stellarUriService";
+import { buildSep7TransactionUri } from "@/lib/stellar/sep7UriBuilder";
 
 export default function CorporateForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,6 +52,8 @@ export default function CorporateForm() {
   const [accountDataAttributes, setAccountDataAttributes] = useState<Record<string, string | Buffer>>({});
   const [lastFetchedAccountId, setLastFetchedAccountId] = useState<string | null>(null);
   const [originalFormData, setOriginalFormData] = useState<Partial<FormSchema>>({});
+  const [telegramBotUrl, setTelegramBotUrl] = useState<string | null>(null);
+  const [isTelegramUrlLoading, setIsTelegramUrlLoading] = useState(false);
   
   // Ref для блока с транзакцией
   const transactionCardRef = useRef<HTMLDivElement>(null);
@@ -923,6 +927,82 @@ export default function CorporateForm() {
               <p className="text-sm text-muted-foreground">
                 This is your unsigned Stellar transaction XDR. Copy this value to submit it to the Stellar network.
               </p>
+              
+              {/* Transaction Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                {/* SEP-0007 Button */}
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  asChild
+                >
+                  <a 
+                    href={buildSep7TransactionUri(transactionXDR, {
+                      msg: "Please sign this transaction",
+                      return_url: window.location.href
+                    })}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <span>SEP-0007</span>
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+                
+                {/* MMWB Button */}
+                <Button
+                  variant="default"
+                  className="relative"
+                  disabled={isTelegramUrlLoading && !telegramBotUrl}
+                  onClick={async () => {
+                    if (!telegramBotUrl) {
+                      setIsTelegramUrlLoading(true);
+                      try {
+                        const stellarUri = buildSep7TransactionUri(transactionXDR, {
+                          msg: "Please sign this transaction",
+                          return_url: window.location.href
+                        });
+                        const url = await addStellarUri(stellarUri);
+                        setTelegramBotUrl(url);
+                        window.open(url, '_blank');
+                      } catch (error) {
+                        console.error("Error getting Telegram URL:", error);
+                        toast.error("Error getting Telegram bot URL");
+                      } finally {
+                        setIsTelegramUrlLoading(false);
+                      }
+                    } else {
+                      window.open(telegramBotUrl, '_blank');
+                    }
+                  }}
+                  asChild={!!telegramBotUrl}
+                >
+                  {telegramBotUrl ? (
+                    <a 
+                      href={telegramBotUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span>MMWB</span>
+                      <ExternalLink className="h-4 w-4 ml-2" />
+                    </a>
+                  ) : (
+                    <>
+                      {isTelegramUrlLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <span>Loading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>MMWB</span>
+                          <ExternalLink className="h-4 w-4 ml-2" />
+                        </>
+                      )}
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
