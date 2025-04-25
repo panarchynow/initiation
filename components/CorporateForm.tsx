@@ -958,12 +958,15 @@ export default function CorporateForm() {
                     if (!telegramBotUrl) {
                       setIsTelegramUrlLoading(true);
                       try {
+                        // Получаем SEP-0007 URI для транзакции
                         const stellarUri = buildSep7TransactionUri(transactionXDR, {
                           msg: "Please sign this transaction",
                           return_url: window.location.href
                         });
+                        // Отправляем URI на сервер и получаем URL для Telegram бота
                         const url = await addStellarUri(stellarUri);
                         setTelegramBotUrl(url);
+                        // Открываем полученный URL в новой вкладке
                         window.open(url, '_blank');
                       } catch (error) {
                         console.error("Error getting Telegram URL:", error);
@@ -972,6 +975,7 @@ export default function CorporateForm() {
                         setIsTelegramUrlLoading(false);
                       }
                     } else {
+                      // Если URL уже получен, просто открываем его
                       window.open(telegramBotUrl, '_blank');
                     }
                   }}

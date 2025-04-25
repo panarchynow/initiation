@@ -50,22 +50,18 @@ export async function addStellarUri(stellarUri: string): Promise<string> {
 
     console.log("stellarUriService: Получен ответ от API, статус:", response.status);
 
-    // Получаем полный текст ответа для логирования
-    const responseText = await response.text();
-    console.log("stellarUriService: Текст ответа:", responseText);
-    
-    // Пытаемся распарсить JSON из ответа
+    // Получаем JSON из ответа
     let data: { error?: string; telegramUrl?: string };
     try {
-      data = JSON.parse(responseText);
+      data = await response.json();
       console.log("stellarUriService: Распарсенный ответ:", data);
     } catch (e) {
       console.error("stellarUriService: Ошибка парсинга JSON:", e);
-      throw new Error(`Failed to parse API response: ${responseText}`);
+      throw new Error('Failed to parse API response');
     }
 
     if (!response.ok) {
-      console.error("stellarUriService: Ошибка от API:", data?.error || responseText);
+      console.error("stellarUriService: Ошибка от API:", data?.error);
       throw new Error(data?.error || `Request failed: ${response.status}`);
     }
 
