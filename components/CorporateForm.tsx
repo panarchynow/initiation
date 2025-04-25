@@ -120,7 +120,9 @@ export default function CorporateForm() {
             console.log(`Setting form field ${formKey} with value:`, stringValue);
             form.setValue(formKey as keyof FormSchema, stringValue, { shouldValidate: true });
             // Сохраняем оригинальное значение
-            original[formKey as keyof FormSchema] = stringValue;
+            if (typeof stringValue === 'string') {
+              (original as Record<string, unknown>)[formKey] = stringValue;
+            }
           } catch (error) {
             console.error(`Error setting form field ${formKey}:`, error);
           }
@@ -297,15 +299,40 @@ export default function CorporateForm() {
         
         // My Parts требуют особой обработки, так как это массив
         let deletedMyParts: Array<{id: string, accountId: string}> = [];
+        // Определяем тип для заменённых позиций
+        let replacedMyParts: Array<{id: string, accountId: string, replacedWith: string | null}> = [];
         
         if (originalFormData.myParts && originalFormData.myParts.length > 0) {
-          // Находим удаленные MyParts
-          const currentMyPartIds = new Set(data.myParts.map(part => part.accountId));
-          deletedMyParts = originalFormData.myParts.filter(part => 
-            part.accountId && !currentMyPartIds.has(part.accountId)
-          );
+          // Находим удаленные MyParts с учетом соответствия полей по позиции
+          deletedMyParts = originalFormData.myParts.filter(originalPart => {
+            // Если у оригинального значения нет accountId, игнорируем его
+            if (!originalPart.accountId) return false;
+            
+            // Ищем в новой форме поле с тем же id
+            const matchingField = data.myParts.find(newPart => newPart.id === originalPart.id);
+            
+            // Если поле с таким id вообще не найдено, то оригинальное значение было удалено
+            if (!matchingField) return true;
+            
+            // Если поле найдено, но значение изменилось - это удаление с заменой
+            if (matchingField.accountId !== originalPart.accountId) return true;
+            
+            // В остальных случаях считаем, что значение не было удалено
+            return false;
+          });
           
           console.log("Deleted MyParts:", deletedMyParts);
+          
+          // Для каждого удаленного поля также запомним, было ли оно заменено новым значением
+          replacedMyParts = deletedMyParts.map(deletedPart => {
+            const matchingField = data.myParts.find(newPart => newPart.id === deletedPart.id);
+            return {
+              ...deletedPart,
+              replacedWith: matchingField?.accountId || null
+            };
+          });
+          
+          console.log("Replaced MyParts:", replacedMyParts);
         }
         
         // Теги не нужно обрабатывать здесь особым образом, так как обновленная логика
@@ -320,6 +347,9 @@ export default function CorporateForm() {
         // Обрабатываем удаленные MyParts если есть
         if (deletedMyParts.length > 0) {
           try {
+            // Копируем массив replacedMyParts в локальную переменную для использования в блоке
+            const replacedParts = [...replacedMyParts];
+            
             // Загружаем существующий аккаунт
             const server = createStellarServer();
             const accountData = await server.loadAccount(data.accountId);
@@ -362,10 +392,19 @@ export default function CorporateForm() {
             // Добавляем новые MyParts
             for (const part of changedData.myParts) {
               if (part.accountId && part.accountId !== "") {
-                const existingPartId = originalFormData.myParts?.find(p => p.accountId === part.accountId)?.id;
-                if (!existingPartId) {
-                  // Это новый MyPart, нужно добавить
-                  // Здесь нужна логика для генерации новых ID, но мы оставим это на транзакцию из generateStellarTransaction
+                // Проверяем, новое ли это значение или замена существующего
+                const partIsReplacement = replacedParts.some(
+                  (replacedPart) => replacedPart.id === part.id && replacedPart.replacedWith === part.accountId
+                );
+                
+                // Если это замена существующего, то не нужно добавлять операцию,
+                // так как мы уже добавили операцию на удаление и добавим новую операцию ниже
+                if (!partIsReplacement) {
+                  const existingPartId = originalFormData.myParts?.find(p => p.accountId === part.accountId)?.id;
+                  if (!existingPartId) {
+                    // Это новый MyPart, нужно добавить
+                    // Здесь нужна логика для генерации новых ID, но мы оставим это на транзакцию из generateStellarTransaction
+                  }
                 }
               }
             }
@@ -379,6 +418,19 @@ export default function CorporateForm() {
                   value: null // null означает удаление
                 })
               );
+            }
+            
+            // Добавляем операции для новых значений, которые заменили старые
+            for (const part of replacedParts) {
+              if (part.replacedWith) {
+                const key = formatMyPartKey(part.id);
+                transaction.addOperation(
+                  StellarSdk.Operation.manageData({
+                    name: key,
+                    value: part.replacedWith
+                  })
+                );
+              }
             }
             
             // Добавляем остальные поля
@@ -424,6 +476,7 @@ export default function CorporateForm() {
             return;
           } catch (error) {
             console.error("Error creating combined transaction:", error);
+            // В случае ошибки, продолжаем выполнение с обычной генерацией транзакции ниже
           }
         }
         

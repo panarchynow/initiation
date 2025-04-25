@@ -29,6 +29,9 @@ import { toast } from "sonner";
 import TagSelector from "@/components/form/TagSelector";
 import FileUploadField from "@/components/form/FileUploadField";
 import { uploadFile } from "@/lib/upload";
+import { createStellarServer } from "@/lib/stellar/server";
+import * as StellarSdk from "stellar-sdk";
+import { STELLAR_CONFIG } from "@/lib/stellar/config";
 
 // Схема валидации для формы участника
 const participantFormSchema = z.object({
@@ -152,6 +155,18 @@ const calculateByteLength = (str: string): number => {
   return new TextEncoder().encode(str).length;
 };
 
+// Опрдеделяем функцию для получения тега по ID, которая будет использоваться в populateForm
+const getTagById = (key: string) => {
+  // Реализация аналогична функции в lib/stellar/tags.ts
+  const tagMatch = key.match(/^Tag(.+)$/);
+  if (!tagMatch) return null;
+  
+  return {
+    id: tagMatch[1].toLowerCase(),
+    key: key
+  };
+};
+
 export default function ParticipantForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transactionXDR, setTransactionXDR] = useState("");
@@ -246,7 +261,9 @@ export default function ParticipantForm() {
             console.log(`Setting form field ${formKey} with value:`, stringValue);
             form.setValue(formKey as keyof ParticipantFormSchema, stringValue, { shouldValidate: true });
             // Сохраняем оригинальное значение
-            original[formKey as keyof typeof original] = stringValue;
+            if (typeof stringValue === 'string') {
+              (original as Record<string, unknown>)[formKey] = stringValue;
+            }
           } catch (error) {
             console.error(`Error setting form field ${formKey}:`, error);
           }
@@ -433,6 +450,44 @@ export default function ParticipantForm() {
           changedData.timeTokenOfferIPFS = "";
         }
         
+        // My Parts требуют особой обработки, так как это массив
+        let deletedPartOf: Array<{id: string, accountId: string}> = [];
+        // Определяем тип для заменённых позиций
+        let replacedPartOf: Array<{id: string, accountId: string, replacedWith: string | null}> = [];
+        
+        if (originalFormData.partOf && originalFormData.partOf.length > 0) {
+          // Находим удаленные PartOf с учетом соответствия полей по позиции
+          deletedPartOf = originalFormData.partOf.filter(originalPart => {
+            // Если у оригинального значения нет accountId, игнорируем его
+            if (!originalPart.accountId) return false;
+            
+            // Ищем в новой форме поле с тем же id
+            const matchingField = data.partOf.find(newPart => newPart.id === originalPart.id);
+            
+            // Если поле с таким id вообще не найдено, то оригинальное значение было удалено
+            if (!matchingField) return true;
+            
+            // Если поле найдено, но значение изменилось - это удаление с заменой
+            if (matchingField.accountId !== originalPart.accountId) return true;
+            
+            // В остальных случаях считаем, что значение не было удалено
+            return false;
+          });
+          
+          console.log("Deleted PartOf:", deletedPartOf);
+          
+          // Для каждого удаленного поля также запомним, было ли оно заменено новым значением
+          replacedPartOf = deletedPartOf.map(deletedPart => {
+            const matchingField = data.partOf.find(newPart => newPart.id === deletedPart.id);
+            return {
+              ...deletedPart,
+              replacedWith: matchingField?.accountId || null
+            };
+          });
+          
+          console.log("Replaced PartOf:", replacedPartOf);
+        }
+        
         // Теги не нужно обрабатывать здесь особым образом, так как обновленная логика
         // в lib/stellar/participantTransaction.ts сама обрабатывает добавление новых и удаление старых тегов
         // Просто передаем текущий выбранный набор
@@ -441,6 +496,168 @@ export default function ParticipantForm() {
         console.log("Original data:", originalFormData);
         console.log("Current data:", data);
         console.log("Changed data:", changedData);
+        
+        // Обрабатываем удаленные PartOf если есть
+        if (deletedPartOf.length > 0) {
+          try {
+            // Копируем массив replacedPartOf в локальную переменную для использования в блоке
+            const replacedParts = [...replacedPartOf];
+            
+            // Загружаем существующий аккаунт
+            const server = createStellarServer();
+            const accountData = await server.loadAccount(data.accountId);
+            
+            // Создаем новую транзакцию для всех изменений
+            const transaction = new StellarSdk.TransactionBuilder(accountData, {
+              fee: STELLAR_CONFIG.BASE_FEE,
+              networkPassphrase: STELLAR_CONFIG.NETWORK,
+            })
+            .setTimeout(STELLAR_CONFIG.TIMEOUT_MINUTES * 60);
+            
+            // Добавляем операции для основных полей (только если они изменились)
+            if (changedData.name && changedData.name !== "") {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.NAME,
+                  value: changedData.name
+                })
+              );
+            }
+            
+            if (changedData.about && changedData.about !== "") {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.ABOUT,
+                  value: changedData.about
+                })
+              );
+            }
+            
+            if (changedData.website) {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.WEBSITE,
+                  value: changedData.website
+                })
+              );
+            }
+            
+            // Добавляем новые PartOf
+            for (const part of changedData.partOf) {
+              if (part.accountId && part.accountId !== "") {
+                // Проверяем, новое ли это значение или замена существующего
+                const partIsReplacement = replacedParts.some(
+                  (replacedPart) => replacedPart.id === part.id && replacedPart.replacedWith === part.accountId
+                );
+                
+                // Если это замена существующего, то не нужно добавлять операцию,
+                // так как мы уже добавили операцию на удаление и добавим новую операцию ниже
+                if (!partIsReplacement) {
+                  const existingPartId = originalFormData.partOf?.find(p => p.accountId === part.accountId)?.id;
+                  if (!existingPartId) {
+                    // Это новый PartOf, нужно добавить
+                    // Здесь нужна логика для генерации новых ID, но мы оставим это на транзакцию из generateParticipantTransaction
+                  }
+                }
+              }
+            }
+            
+            // Добавляем операции для удаления PartOf (set value to null)
+            for (const part of deletedPartOf) {
+              const key = formatPartOfKey(part.id);
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: key,
+                  value: null // null означает удаление
+                })
+              );
+            }
+            
+            // Добавляем операции для новых значений, которые заменили старые
+            for (const part of replacedParts) {
+              if (part.replacedWith) {
+                const key = formatPartOfKey(part.id);
+                transaction.addOperation(
+                  StellarSdk.Operation.manageData({
+                    name: key,
+                    value: part.replacedWith
+                  })
+                );
+              }
+            }
+            
+            // Добавляем остальные поля
+            if (changedData.telegramUserID) {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.TELEGRAM_USER_ID,
+                  value: changedData.telegramUserID
+                })
+              );
+            }
+            
+            if (changedData.timeTokenCode) {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.TIME_TOKEN_CODE,
+                  value: changedData.timeTokenCode
+                })
+              );
+            }
+            
+            if (changedData.timeTokenIssuer) {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.TIME_TOKEN_ISSUER,
+                  value: changedData.timeTokenIssuer
+                })
+              );
+            }
+            
+            if (changedData.timeTokenDesc) {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.TIME_TOKEN_DESC,
+                  value: changedData.timeTokenDesc
+                })
+              );
+            }
+            
+            if (changedData.timeTokenOfferIPFS) {
+              transaction.addOperation(
+                StellarSdk.Operation.manageData({
+                  name: MANAGE_DATA_KEYS.TIME_TOKEN_OFFER_IPFS,
+                  value: changedData.timeTokenOfferIPFS
+                })
+              );
+            }
+            
+            // Обрабатываем теги
+            if (changedData.tags && changedData.tags.length > 0) {
+              for (const tagId of changedData.tags) {
+                const tag = getTagById(tagId);
+                if (tag && data.accountId) {
+                  transaction.addOperation(
+                    StellarSdk.Operation.manageData({
+                      name: tag.key,
+                      value: data.accountId
+                    })
+                  );
+                }
+              }
+            }
+            
+            // Строим транзакцию
+            const combinedXdr = transaction.build().toXDR();
+            
+            // Устанавливаем XDR
+            setTransactionXDR(combinedXdr);
+            toast.success("Transaction generated successfully!");
+            return;
+          } catch (error) {
+            console.error("Error creating combined transaction:", error);
+          }
+        }
       }
       
       // Генерируем транзакцию, используя функцию для формы участника
@@ -500,18 +717,6 @@ export default function ParticipantForm() {
       console.error("Failed to copy:", error);
       toast.error("Failed to copy to clipboard");
     }
-  };
-
-  // Опрдеделяем функцию для получения тега по ID, которая будет использоваться в populateForm
-  const getTagById = (key: string) => {
-    // Реализация аналогична функции в lib/stellar/tags.ts
-    const tagMatch = key.match(/^Tag(.+)$/);
-    if (!tagMatch) return null;
-    
-    return {
-      id: tagMatch[1].toLowerCase(),
-      key: key
-    };
   };
 
   return (
