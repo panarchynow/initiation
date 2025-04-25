@@ -4,7 +4,11 @@ This module handles interactions with the Stellar blockchain, focusing on managi
 
 ## Core Components:
 
--   **`config.ts`**: Defines constants for the Stellar network (Testnet URL, network passphrase, base fee, transaction timeout).
+-   **`config.ts`**: Defines constants for the Stellar network. Uses environment variables to determine which network to connect to:
+    - `NEXT_PUBLIC_STELLAR_NETWORK_TYPE`: Set to 'TESTNET' for test network or 'PUBLIC' (or any other value) for public network (MAINNET).
+    - Defaults to PUBLIC network if no environment variable is set.
+    - Sets appropriate Horizon server URL and network passphrase based on the selected network.
+    - Also defines base fee and transaction timeout.
 -   **`server.ts`**: Provides `createStellarServer` function to instantiate a Horizon server connection using the URL from `config.ts`.
 -   **`account.ts`**: Contains `fetchAccountDataAttributes` to load an account from the Stellar network using `server.ts` and extract its data entries (key-value pairs stored on-chain), handling different potential data structures.
 -   **`tags.ts`**: Manages predefined tags. Defines `TagDefinition` interface and provides functions to format tag keys (`TagBelgrade`, `TagProgrammer`, etc.), IDs (`belgrade`, `programmer`), and labels. Dynamically generates `TAGS` object and provides helpers (`getTagById`, `getTagByKey`, etc.).
