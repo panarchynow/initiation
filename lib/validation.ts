@@ -90,7 +90,7 @@ export const formSchema = z.object({
         return nonEmptyAccountIds.length === uniqueAccountIds.size;
       },
       {
-        message: "All My Parts account IDs must be unique"
+        message: "All My participants account IDs must be unique"
       }
     ),
   telegramPartChatID: z
@@ -116,7 +116,7 @@ export const formSchema = z.object({
     );
   },
   {
-    message: "My Parts account IDs must not match the main Account ID",
+    message: "My participants account IDs must not match the main Account ID",
     path: ["myParts"],
   }
 );

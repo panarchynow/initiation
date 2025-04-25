@@ -93,7 +93,7 @@ const participantFormSchema = z.object({
       return nonEmptyAccountIds.length === uniqueAccountIds.size;
     },
     {
-      message: "All Part Of account IDs must be unique"
+      message: "All Participant of account IDs must be unique"
     }
   ),
   telegramUserID: z
@@ -147,7 +147,7 @@ const participantFormSchema = z.object({
     );
   },
   {
-    message: "Part Of account IDs must not match the main Account ID",
+    message: "Participant of account IDs must not match the main Account ID",
     path: ["partOf"],
   }
 );
@@ -419,11 +419,11 @@ export default function ParticipantForm() {
       // Если есть дубликаты, показываем ошибку
       if (nonEmptyAccountIds.length !== uniqueIds.size) {
         // Выводим ошибку в UI
-        setDuplicateError("Все Account ID для Part Of должны быть уникальными!");
+        setDuplicateError("All Account ID for Participant of must be unique!");
         
         // Принудительно вызываем toast
         setTimeout(() => {
-          toast.error("Все Account ID для Part Of должны быть уникальными!");
+          toast.error("All Account ID for Participant of must be unique!");
         }, 0);
         
         setIsSubmitting(false);
@@ -880,7 +880,7 @@ export default function ParticipantForm() {
                 {/* PartOf Fields */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <FormLabel>Part Of</FormLabel>
+                    <FormLabel>Participant of (PartOf relation)</FormLabel>
                     <Button
                       type="button"
                       variant="outline"

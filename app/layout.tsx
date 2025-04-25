@@ -6,7 +6,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Stellar Integration Forms',
+  title: 'Montelibero Initiation',
   description: 'Forms with Stellar blockchain integration for data management',
 };
 

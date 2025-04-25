@@ -15,7 +15,7 @@ export default function CorporatePage() {
       <div className="container mx-auto py-8 px-4 md:px-6 lg:max-w-4xl">
         <div className="space-y-6">
           <div className="space-y-2 text-center">
-            <h1 className="text-3xl font-bold tracking-tight text-primary">Stellar Data Forms</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-primary">Montelibero Initiation</h1>
             <p className="text-muted-foreground">
               Submit your information to the Stellar blockchain
             </p>

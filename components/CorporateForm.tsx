@@ -278,11 +278,11 @@ export default function CorporateForm() {
       // Если есть дубликаты, показываем ошибку
       if (nonEmptyAccountIds.length !== uniqueIds.size) {
         // Выводим ошибку в UI
-        setDuplicateError("Все Account ID для My Parts должны быть уникальными!");
+        setDuplicateError("All Account IDs for My participants must be unique!");
         
         // Принудительно вызываем toast
         setTimeout(() => {
-          toast.error("Все Account ID для My Parts должны быть уникальными!");
+          toast.error("All Account ID for My participants must be unique!");
         }, 0);
         
         setIsSubmitting(false);
@@ -706,7 +706,7 @@ export default function CorporateForm() {
                 {/* MyPart Fields */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <FormLabel>My Parts</FormLabel>
+                    <FormLabel>My participants (MyPart relation)</FormLabel>
                     <Button
                       type="button"
                       variant="outline"
