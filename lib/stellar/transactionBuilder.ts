@@ -4,7 +4,7 @@ import type { FormSchema } from "../validation";
 import type { Account } from '@stellar/stellar-sdk';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { STELLAR_CONFIG } from './config';
-import { getTagById } from './tags';
+import { getTagById, addTagOperationsToTransaction } from './tags';
 import { formatMyPartKey, generateMyPartIds } from './mypart';
 
 // ManageData operation keys
@@ -13,7 +13,13 @@ export const MANAGE_DATA_KEYS = {
   ABOUT: "About",
   WEBSITE: "Website",
   TELEGRAM_PART_CHAT_ID: "TelegramPartChatID",
-  CONTRACT_IPFS: "ContractIPFS"
+  CONTRACT_IPFS: "ContractIPFS",
+  // Новые ключи для ParticipantForm
+  TELEGRAM_USER_ID: "TelegramUserID",
+  TIME_TOKEN_CODE: "TimeTokenCode",  
+  TIME_TOKEN_ISSUER: "TimeTokenIssuer",
+  TIME_TOKEN_DESC: "TimeTokenDesc",
+  TIME_TOKEN_OFFER_IPFS: "TimeTokenOfferIPFS"
 };
 
 // Types for dependencies to make DI easier
@@ -61,7 +67,8 @@ export async function buildTransaction(
     transactionBuilderFactory: StellarSdk.TransactionBuilder as unknown as TransactionBuilderFactory,
     formatMyPartKey,
     generateMyPartIds,
-    getTagById
+    getTagById,
+    addTagOperationsToTransaction
   }
 ) {
   // Setup a transaction builder
@@ -123,14 +130,15 @@ export async function buildTransaction(
   addManageDataOperation(transaction, MANAGE_DATA_KEYS.TELEGRAM_PART_CHAT_ID, formData.telegramPartChatID, deps.operationFactory);
   
   // Handle tags - add individual tag operations if the tag is selected
-  if (formData.tags && formData.tags.length > 0 && formData.accountId) {
-    // Для каждого тега в форме, найдем соответствующий тег в TAGS
-    for (const tagId of formData.tags) {
-      const tag = deps.getTagById(tagId);
-      if (tag) {
-        addManageDataOperation(transaction, tag.key, formData.accountId, deps.operationFactory);
-      }
-    }
+  if (formData.accountId) {
+    deps.addTagOperationsToTransaction(
+      transaction,
+      formData.accountId,
+      formData.tags,
+      accountDataAttributes,
+      deps.operationFactory,
+      deps.getTagById
+    );
   }
   
   addManageDataOperation(transaction, MANAGE_DATA_KEYS.CONTRACT_IPFS, formData.contractIPFSHash, deps.operationFactory);

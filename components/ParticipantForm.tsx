@@ -4,15 +4,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Check, AlertCircle, Plus, Minus, Copy, CopyCheck } from "lucide-react";
-import type { FormSchema } from "@/lib/validation";
-import { formSchema, calculateByteLength } from "@/lib/validation";
-import { generateStellarTransaction } from "@/lib/stellar/index";
+import { z } from "zod";
+import { StrKey } from "stellar-sdk";
+import { generateParticipantTransaction } from "@/lib/stellar/participantTransaction";
+import type { ParticipantFormSchema } from "@/lib/stellar/participantTransaction";
 import { fetchAccountDataAttributes } from "@/lib/stellar/account";
 import { MANAGE_DATA_KEYS } from "@/lib/stellar/transactionBuilder";
-import { getTagByKey } from "@/lib/stellar/tags";
-import { extractMyPartId, formatMyPartKey } from "@/lib/stellar/mypart";
-import { StrKey } from "stellar-sdk";
-import { uploadFile } from "@/lib/upload";
+import { extractPartOfId, formatPartOfKey } from "@/lib/stellar/partof";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -24,18 +22,137 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import TagSelector from "@/components/form/TagSelector";
 import FileUploadField from "@/components/form/FileUploadField";
-import { createStellarServer } from "@/lib/stellar/server";
-import * as StellarSdk from "stellar-sdk";
-import { STELLAR_CONFIG } from "@/lib/stellar/config";
+import { uploadFile } from "@/lib/upload";
 
-export default function CorporateForm() {
+// Схема валидации для формы участника
+const participantFormSchema = z.object({
+  accountId: z.string()
+    .min(1, "Account ID is required")
+    .refine((value) => StrKey.isValidEd25519PublicKey(value), {
+      message: "Invalid Stellar account ID",
+    }),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .refine((value) => {
+      // Calculate UTF-8 byte length of a string
+      const byteLength = new TextEncoder().encode(value).length;
+      return byteLength <= 64;
+    }, {
+      message: "Name must not exceed 64 bytes in UTF-8 encoding",
+    }),
+  about: z
+    .string()
+    .min(1, "About is required")
+    .refine((value) => {
+      const byteLength = new TextEncoder().encode(value).length;
+      return byteLength <= 64;
+    }, {
+      message: "About must not exceed 64 bytes in UTF-8 encoding",
+    }),
+  website: z
+    .string()
+    .optional()
+    .refine((val) => !val || val.startsWith('http'), {
+      message: "Must be a valid URL",
+    })
+    .refine((val) => {
+      if (!val) return true;
+      const byteLength = new TextEncoder().encode(val).length;
+      return byteLength <= 64;
+    }, {
+      message: "Website URL must not exceed 64 bytes in UTF-8 encoding",
+    }),
+  partOf: z.array(
+    z.object({
+      id: z.string().regex(/^\d+$/, "ID must contain only numbers"),
+      accountId: z.string().refine(
+        (val) => val === "" || StrKey.isValidEd25519PublicKey(val), {
+          message: "Invalid Stellar account ID",
+        }
+      ),
+    })
+  )
+  .refine(
+    (parts) => {
+      const nonEmptyAccountIds = parts
+        .map(part => part.accountId)
+        .filter(id => id !== "");
+      const uniqueAccountIds = new Set(nonEmptyAccountIds);
+      return nonEmptyAccountIds.length === uniqueAccountIds.size;
+    },
+    {
+      message: "All Part Of account IDs must be unique"
+    }
+  ),
+  telegramUserID: z
+    .string()
+    .regex(/^\d*$/, "Must contain only numbers")
+    .optional()
+    .refine((val) => {
+      if (!val) return true;
+      const byteLength = new TextEncoder().encode(val).length;
+      return byteLength <= 64;
+    }, {
+      message: "Telegram User ID must not exceed 64 bytes",
+    }),
+  tags: z
+    .array(z.string())
+    .optional(),
+  timeTokenCode: z
+    .string()
+    .optional()
+    .refine((val) => {
+      if (!val) return true;
+      const byteLength = new TextEncoder().encode(val).length;
+      return byteLength <= 64;
+    }, {
+      message: "Time Token Code must not exceed 64 bytes",
+    }),
+  timeTokenIssuer: z
+    .string()
+    .optional()
+    .refine((val) => !val || StrKey.isValidEd25519PublicKey(val), {
+      message: "Invalid Stellar account ID",
+    }),
+  timeTokenDesc: z
+    .string()
+    .optional()
+    .refine((val) => {
+      if (!val) return true;
+      const byteLength = new TextEncoder().encode(val).length;
+      return byteLength <= 64;
+    }, {
+      message: "Time Token Description must not exceed 64 bytes",
+    }),
+  timeTokenOfferIPFS: z
+    .string()
+    .optional(),
+}).refine(
+  (data) => {
+    if (!data.partOf.length) return true;
+    return !data.partOf.some(part => 
+      part.accountId !== "" && part.accountId === data.accountId
+    );
+  },
+  {
+    message: "Part Of account IDs must not match the main Account ID",
+    path: ["partOf"],
+  }
+);
+
+// Функция для расчета byte length текста
+const calculateByteLength = (str: string): number => {
+  return new TextEncoder().encode(str).length;
+};
+
+export default function ParticipantForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transactionXDR, setTransactionXDR] = useState("");
   const [uploadTab, setUploadTab] = useState("file");
@@ -44,12 +161,12 @@ export default function CorporateForm() {
   const [uploadedFileInfo, setUploadedFileInfo] = useState<{ name: string; size: number } | null>(null);
   const [isFileUploaded, setIsFileUploaded] = useState(false);
   
-  // Новые состояния для загрузки данных аккаунта
+  // Состояния для загрузки данных аккаунта
   const [isFetchingAccountData, setIsFetchingAccountData] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [accountDataAttributes, setAccountDataAttributes] = useState<Record<string, string | Buffer>>({});
   const [lastFetchedAccountId, setLastFetchedAccountId] = useState<string | null>(null);
-  const [originalFormData, setOriginalFormData] = useState<Partial<FormSchema>>({});
+  const [originalFormData, setOriginalFormData] = useState<Partial<ParticipantFormSchema>>({});
   
   // Ref для блока с транзакцией
   const transactionCardRef = useRef<HTMLDivElement>(null);
@@ -65,25 +182,28 @@ export default function CorporateForm() {
   }, [transactionXDR]);
 
   // Initialize form
-  const form = useForm<FormSchema>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<ParticipantFormSchema>({
+    resolver: zodResolver(participantFormSchema),
     defaultValues: {
       accountId: "",
       name: "",
       about: "",
       website: "",
-      myParts: [{ id: "1", accountId: "" }],
-      telegramPartChatID: "",
+      partOf: [{ id: "1", accountId: "" }],
+      telegramUserID: "",
       tags: [],
-      contractIPFSHash: "",
+      timeTokenCode: "",
+      timeTokenIssuer: "",
+      timeTokenDesc: "",
+      timeTokenOfferIPFS: "",
     },
     mode: "onChange",
   });
 
-  // Initialize field array for MyPart fields
+  // Initialize field array for PartOf fields
   const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
-    name: "myParts",
+    name: "partOf",
   });
 
   // Функция для заполнения формы данными из блокчейна
@@ -96,9 +216,12 @@ export default function CorporateForm() {
         name?: string;
         about?: string;
         website?: string;
-        contractIPFSHash?: string;
-        telegramPartChatID?: string;
-        myParts?: Array<{id: string, accountId: string}>;
+        telegramUserID?: string;
+        timeTokenCode?: string;
+        timeTokenIssuer?: string;
+        timeTokenDesc?: string;
+        timeTokenOfferIPFS?: string;
+        partOf?: Array<{id: string, accountId: string}>;
         tags?: string[];
       } = {};
       
@@ -107,8 +230,11 @@ export default function CorporateForm() {
         [MANAGE_DATA_KEYS.NAME]: "name",
         [MANAGE_DATA_KEYS.ABOUT]: "about",
         [MANAGE_DATA_KEYS.WEBSITE]: "website",
-        [MANAGE_DATA_KEYS.CONTRACT_IPFS]: "contractIPFSHash",
-        [MANAGE_DATA_KEYS.TELEGRAM_PART_CHAT_ID]: "telegramPartChatID",
+        [MANAGE_DATA_KEYS.TELEGRAM_USER_ID]: "telegramUserID",
+        [MANAGE_DATA_KEYS.TIME_TOKEN_CODE]: "timeTokenCode",
+        [MANAGE_DATA_KEYS.TIME_TOKEN_ISSUER]: "timeTokenIssuer",
+        [MANAGE_DATA_KEYS.TIME_TOKEN_DESC]: "timeTokenDesc",
+        [MANAGE_DATA_KEYS.TIME_TOKEN_OFFER_IPFS]: "timeTokenOfferIPFS",
       };
       
       // Сначала устанавливаем известные поля
@@ -118,37 +244,37 @@ export default function CorporateForm() {
           try {
             const stringValue = Buffer.isBuffer(value) ? value.toString('utf8') : value;
             console.log(`Setting form field ${formKey} with value:`, stringValue);
-            form.setValue(formKey as keyof FormSchema, stringValue, { shouldValidate: true });
+            form.setValue(formKey as keyof ParticipantFormSchema, stringValue, { shouldValidate: true });
             // Сохраняем оригинальное значение
-            original[formKey as keyof FormSchema] = stringValue;
+            original[formKey as keyof typeof original] = stringValue;
           } catch (error) {
             console.error(`Error setting form field ${formKey}:`, error);
           }
         }
       }
       
-      // Обрабатываем MyPart
+      // Обрабатываем PartOf
       try {
-        const myPartKeys = Object.keys(dataAttributes).filter(key => key.startsWith('MyPart') && /^MyPart\d+$/.test(key));
-        console.log('Found MyPart keys:', myPartKeys);
+        const partOfKeys = Object.keys(dataAttributes).filter(key => key.startsWith('PartOf') && /^PartOf\d+$/.test(key));
+        console.log('Found PartOf keys:', partOfKeys);
         
-        if (myPartKeys.length > 0) {
-          const myParts = myPartKeys.map(key => {
-            const id = String(extractMyPartId(key) || "0");
+        if (partOfKeys.length > 0) {
+          const partOf = partOfKeys.map(key => {
+            const id = String(extractPartOfId(key) || "0");
             const value = dataAttributes[key];
             const accountId = Buffer.isBuffer(value) ? value.toString('utf8') : String(value);
             return { id, accountId };
           }).sort((a, b) => Number(a.id) - Number(b.id));
           
-          console.log('Mapped MyParts:', myParts);
+          console.log('Mapped PartOf:', partOf);
           
           // Обновляем массив в форме
-          replace(myParts.length > 0 ? myParts : [{ id: "1", accountId: "" }]);
+          replace(partOf.length > 0 ? partOf : [{ id: "1", accountId: "" }]);
           // Сохраняем оригинальное значение
-          original.myParts = JSON.parse(JSON.stringify(myParts));
+          original.partOf = JSON.parse(JSON.stringify(partOf));
         }
       } catch (error) {
-        console.error('Error processing MyPart data:', error);
+        console.error('Error processing PartOf data:', error);
       }
       
       // Обрабатываем теги
@@ -159,7 +285,7 @@ export default function CorporateForm() {
         const tagIds: string[] = [];
         
         for (const key of tagKeys) {
-          const tag = getTagByKey(key);
+          const tag = getTagById(key);
           if (tag) {
             tagIds.push(tag.id);
           }
@@ -170,7 +296,7 @@ export default function CorporateForm() {
         if (tagIds.length > 0) {
           form.setValue('tags', tagIds, { shouldValidate: true });
           // Сохраняем оригинальное значение
-          original.tags = [...tagIds];
+          original.tags = tagIds;
         }
       } catch (error) {
         console.error('Error processing Tag data:', error);
@@ -234,8 +360,8 @@ export default function CorporateForm() {
     }
   }, [lastFetchedAccountId, populateForm]);
 
-  // Add new MyPart field
-  const addMyPart = () => {
+  // Add new PartOf field
+  const addPartOf = () => {
     const newId = String(fields.length + 1);
     append({ id: newId, accountId: "" });
     // Сбрасываем ошибку при добавлении нового поля
@@ -243,14 +369,14 @@ export default function CorporateForm() {
   };
 
   // Form submission handler
-  const onSubmit = async (data: FormSchema) => {
+  const onSubmit = async (data: ParticipantFormSchema) => {
     setIsSubmitting(true);
     // Сначала сбрасываем ошибку
     setDuplicateError(null);
     
     try {
       // Проверяем дубликаты вручную и показываем уведомление
-      const nonEmptyAccountIds = data.myParts
+      const nonEmptyAccountIds = data.partOf
         .map(part => part.accountId)
         .filter(id => id !== ""); // Игнорируем пустые
       
@@ -259,11 +385,11 @@ export default function CorporateForm() {
       // Если есть дубликаты, показываем ошибку
       if (nonEmptyAccountIds.length !== uniqueIds.size) {
         // Выводим ошибку в UI
-        setDuplicateError("Все Account ID для My Parts должны быть уникальными!");
+        setDuplicateError("Все Account ID для Part Of должны быть уникальными!");
         
         // Принудительно вызываем toast
         setTimeout(() => {
-          toast.error("Все Account ID для My Parts должны быть уникальными!");
+          toast.error("Все Account ID для Part Of должны быть уникальными!");
         }, 0);
         
         setIsSubmitting(false);
@@ -271,7 +397,7 @@ export default function CorporateForm() {
       }
       
       // Создаём объект только с изменёнными данными, если есть оригинальные данные
-      const changedData: FormSchema = { ...data };
+      const changedData: ParticipantFormSchema = { ...data };
       
       if (Object.keys(originalFormData).length > 0) {
         // Проверяем и обрабатываем стандартные поля
@@ -287,156 +413,40 @@ export default function CorporateForm() {
           changedData.website = "";
         }
         
-        if (originalFormData.contractIPFSHash === data.contractIPFSHash) {
-          changedData.contractIPFSHash = "";
+        if (originalFormData.telegramUserID === data.telegramUserID) {
+          changedData.telegramUserID = "";
         }
         
-        if (originalFormData.telegramPartChatID === data.telegramPartChatID) {
-          changedData.telegramPartChatID = "";
+        if (originalFormData.timeTokenCode === data.timeTokenCode) {
+          changedData.timeTokenCode = "";
         }
         
-        // My Parts требуют особой обработки, так как это массив
-        let deletedMyParts: Array<{id: string, accountId: string}> = [];
+        if (originalFormData.timeTokenIssuer === data.timeTokenIssuer) {
+          changedData.timeTokenIssuer = "";
+        }
         
-        if (originalFormData.myParts && originalFormData.myParts.length > 0) {
-          // Находим удаленные MyParts
-          const currentMyPartIds = new Set(data.myParts.map(part => part.accountId));
-          deletedMyParts = originalFormData.myParts.filter(part => 
-            part.accountId && !currentMyPartIds.has(part.accountId)
-          );
-          
-          console.log("Deleted MyParts:", deletedMyParts);
+        if (originalFormData.timeTokenDesc === data.timeTokenDesc) {
+          changedData.timeTokenDesc = "";
+        }
+        
+        if (originalFormData.timeTokenOfferIPFS === data.timeTokenOfferIPFS) {
+          changedData.timeTokenOfferIPFS = "";
         }
         
         // Теги не нужно обрабатывать здесь особым образом, так как обновленная логика
-        // в lib/stellar/transactionBuilder.ts сама обрабатывает добавление новых и удаление старых тегов
+        // в lib/stellar/participantTransaction.ts сама обрабатывает добавление новых и удаление старых тегов
         // Просто передаем текущий выбранный набор
         changedData.tags = data.tags;
         
         console.log("Original data:", originalFormData);
         console.log("Current data:", data);
         console.log("Changed data:", changedData);
-        
-        // Обрабатываем удаленные MyParts если есть
-        if (deletedMyParts.length > 0) {
-          try {
-            // Загружаем существующий аккаунт
-            const server = createStellarServer();
-            const accountData = await server.loadAccount(data.accountId);
-            
-            // Создаем новую транзакцию для всех изменений
-            const transaction = new StellarSdk.TransactionBuilder(accountData, {
-              fee: STELLAR_CONFIG.BASE_FEE,
-              networkPassphrase: STELLAR_CONFIG.NETWORK,
-            })
-            .setTimeout(STELLAR_CONFIG.TIMEOUT_MINUTES * 60);
-            
-            // Добавляем операции для основных полей (только если они изменились)
-            if (changedData.name && changedData.name !== "") {
-              transaction.addOperation(
-                StellarSdk.Operation.manageData({
-                  name: MANAGE_DATA_KEYS.NAME,
-                  value: changedData.name
-                })
-              );
-            }
-            
-            if (changedData.about && changedData.about !== "") {
-              transaction.addOperation(
-                StellarSdk.Operation.manageData({
-                  name: MANAGE_DATA_KEYS.ABOUT,
-                  value: changedData.about
-                })
-              );
-            }
-            
-            if (changedData.website) {
-              transaction.addOperation(
-                StellarSdk.Operation.manageData({
-                  name: MANAGE_DATA_KEYS.WEBSITE,
-                  value: changedData.website
-                })
-              );
-            }
-            
-            // Добавляем новые MyParts
-            for (const part of changedData.myParts) {
-              if (part.accountId && part.accountId !== "") {
-                const existingPartId = originalFormData.myParts?.find(p => p.accountId === part.accountId)?.id;
-                if (!existingPartId) {
-                  // Это новый MyPart, нужно добавить
-                  // Здесь нужна логика для генерации новых ID, но мы оставим это на транзакцию из generateStellarTransaction
-                }
-              }
-            }
-            
-            // Добавляем операции для удаления MyParts (set value to null)
-            for (const part of deletedMyParts) {
-              const key = formatMyPartKey(part.id);
-              transaction.addOperation(
-                StellarSdk.Operation.manageData({
-                  name: key,
-                  value: null // null означает удаление
-                })
-              );
-            }
-            
-            // Добавляем остальные поля
-            if (changedData.telegramPartChatID) {
-              transaction.addOperation(
-                StellarSdk.Operation.manageData({
-                  name: MANAGE_DATA_KEYS.TELEGRAM_PART_CHAT_ID,
-                  value: changedData.telegramPartChatID
-                })
-              );
-            }
-            
-            if (changedData.contractIPFSHash) {
-              transaction.addOperation(
-                StellarSdk.Operation.manageData({
-                  name: MANAGE_DATA_KEYS.CONTRACT_IPFS,
-                  value: changedData.contractIPFSHash
-                })
-              );
-            }
-            
-            // Обрабатываем теги
-            if (changedData.tags && changedData.tags.length > 0) {
-              for (const tagId of changedData.tags) {
-                const tag = getTagByKey(tagId);
-                if (tag && data.accountId) {
-                  transaction.addOperation(
-                    StellarSdk.Operation.manageData({
-                      name: tag.key,
-                      value: data.accountId
-                    })
-                  );
-                }
-              }
-            }
-            
-            // Строим транзакцию
-            const combinedXdr = transaction.build().toXDR();
-            
-            // Устанавливаем XDR
-            setTransactionXDR(combinedXdr);
-            toast.success("Transaction generated successfully!");
-            return;
-          } catch (error) {
-            console.error("Error creating combined transaction:", error);
-          }
-        }
-        
-        // Обычная генерация транзакции, если нет удаленных MyParts или произошла ошибка
-        const xdr = await generateStellarTransaction(changedData);
-        setTransactionXDR(xdr);
-        toast.success("Transaction generated successfully!");
-      } else {
-        // Получаем XDR для всех данных, если нет оригинальных
-        const xdr = await generateStellarTransaction(data);
-        setTransactionXDR(xdr);
-        toast.success("Transaction generated successfully!");
       }
+      
+      // Генерируем транзакцию, используя функцию для формы участника
+      const xdr = await generateParticipantTransaction(changedData);
+      setTransactionXDR(xdr);
+      toast.success("Transaction generated successfully!");
     } catch (error) {
       console.error("Error submitting form:", error);
       
@@ -461,7 +471,7 @@ export default function CorporateForm() {
       });
       
       const ipfsHash = await uploadFile(file);
-      form.setValue("contractIPFSHash", ipfsHash, { shouldValidate: true });
+      form.setValue("timeTokenOfferIPFS", ipfsHash, { shouldValidate: true });
       
       // Отмечаем, что файл был успешно загружен
       setIsFileUploaded(true);
@@ -490,6 +500,18 @@ export default function CorporateForm() {
       console.error("Failed to copy:", error);
       toast.error("Failed to copy to clipboard");
     }
+  };
+
+  // Опрдеделяем функцию для получения тега по ID, которая будет использоваться в populateForm
+  const getTagById = (key: string) => {
+    // Реализация аналогична функции в lib/stellar/tags.ts
+    const tagMatch = key.match(/^Tag(.+)$/);
+    if (!tagMatch) return null;
+    
+    return {
+      id: tagMatch[1].toLowerCase(),
+      key: key
+    };
   };
 
   return (
@@ -558,11 +580,11 @@ export default function CorporateForm() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company Name *</FormLabel>
+                      <FormLabel>Name *</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
-                            placeholder="Enter company name"
+                            placeholder="Enter your name"
                             {...field}
                             className="pr-20 input-glow"
                           />
@@ -572,7 +594,7 @@ export default function CorporateForm() {
                         </div>
                       </FormControl>
                       <FormDescription>
-                        Your company's official name
+                        Your full name
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -589,7 +611,7 @@ export default function CorporateForm() {
                       <FormControl>
                         <div className="relative">
                           <Input
-                            placeholder="Brief description of your company"
+                            placeholder="Brief description about yourself"
                             className="pr-20 input-glow"
                             {...field}
                           />
@@ -599,7 +621,7 @@ export default function CorporateForm() {
                         </div>
                       </FormControl>
                       <FormDescription>
-                        A short description of your company
+                        A short description about yourself
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -626,22 +648,22 @@ export default function CorporateForm() {
                         </div>
                       </FormControl>
                       <FormDescription>
-                        Your company website URL
+                        Your personal website or social media URL
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                {/* MyPart Fields */}
+                {/* PartOf Fields */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <FormLabel>My Parts</FormLabel>
+                    <FormLabel>Part Of</FormLabel>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={addMyPart}
+                      onClick={addPartOf}
                       className="text-primary border-primary/20"
                     >
                       <Plus className="h-4 w-4 mr-1" />
@@ -652,7 +674,7 @@ export default function CorporateForm() {
                     <div key={field.id} className="flex gap-4">
                       <FormField
                         control={form.control}
-                        name={`myParts.${index}.accountId`}
+                        name={`partOf.${index}.accountId`}
                         render={({ field: accountField }) => (
                           <FormItem className="flex-1">
                             <div className="flex items-center gap-2">
@@ -691,7 +713,7 @@ export default function CorporateForm() {
                     </div>
                   ))}
                   
-                  {/* Отображаем ошибку для массива myParts из состояния */}
+                  {/* Отображаем ошибку для массива partOf из состояния */}
                   {duplicateError && (
                     <div className="flex items-center gap-2 text-destructive text-sm mt-2">
                       <AlertCircle className="h-4 w-4" />
@@ -699,31 +721,36 @@ export default function CorporateForm() {
                     </div>
                   )}
                   
-                  {/* Отображаем ошибку для массива myParts из валидатора */}
-                  {form.formState.errors.myParts?.root?.message && (
+                  {/* Отображаем ошибку для массива partOf из валидатора */}
+                  {form.formState.errors.partOf?.root?.message && (
                     <div className="flex items-center gap-2 text-destructive text-sm mt-2">
                       <AlertCircle className="h-4 w-4" />
-                      <span>{form.formState.errors.myParts.root.message}</span>
+                      <span>{form.formState.errors.partOf.root.message}</span>
                     </div>
                   )}
                 </div>
 
-                {/* TelegramPartChatID Field */}
+                {/* TelegramUserID Field */}
                 <FormField
                   control={form.control}
-                  name="telegramPartChatID"
+                  name="telegramUserID"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Telegram Part Chat ID (Optional)</FormLabel>
+                      <FormLabel>Telegram User ID (Optional)</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Enter Telegram chat ID"
-                          {...field}
-                          className="input-glow"
-                        />
+                        <div className="relative">
+                          <Input
+                            placeholder="Enter Telegram user ID"
+                            {...field}
+                            className="pr-20 input-glow"
+                          />
+                          <div className="absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+                            {calculateByteLength(field.value || "")}/64 bytes
+                          </div>
+                        </div>
                       </FormControl>
                       <FormDescription>
-                        Telegram chat ID for communication
+                        Your Telegram user ID (numbers only)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -744,16 +771,92 @@ export default function CorporateForm() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Select relevant tags for your company
+                        Select relevant tags for your profile
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                {/* ContractIPFS Field */}
+                {/* TimeTokenCode Field */}
+                <FormField
+                  control={form.control}
+                  name="timeTokenCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Time Token Code (Optional)</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            placeholder="Enter time token code"
+                            {...field}
+                            className="pr-20 input-glow"
+                          />
+                          <div className="absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+                            {calculateByteLength(field.value || "")}/64 bytes
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Code for your time token
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* TimeTokenIssuer Field */}
+                <FormField
+                  control={form.control}
+                  name="timeTokenIssuer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Time Token Issuer (Optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter Stellar account ID of the issuer"
+                          {...field}
+                          className="input-glow"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Stellar account ID of the time token issuer
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* TimeTokenDesc Field */}
+                <FormField
+                  control={form.control}
+                  name="timeTokenDesc"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Time Token Description (Optional)</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            placeholder="Enter time token description"
+                            {...field}
+                            className="pr-20 input-glow"
+                          />
+                          <div className="absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+                            {calculateByteLength(field.value || "")}/64 bytes
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Description of your time token
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* TimeTokenOfferIPFS Field */}
                 <FormItem className="space-y-4">
-                  <FormLabel>Contract IPFS (Optional)</FormLabel>
+                  <FormLabel>Time Token Offer IPFS (Optional)</FormLabel>
                   
                   {!isFileUploaded ? (
                     <Tabs
@@ -770,16 +873,16 @@ export default function CorporateForm() {
                         <FileUploadField 
                           onUpload={handleFileUpload} 
                         />
-                        {form.formState.errors.contractIPFSHash && (
+                        {form.formState.errors.timeTokenOfferIPFS && (
                           <p className="text-sm font-medium text-destructive mt-2">
-                            {form.formState.errors.contractIPFSHash.message}
+                            {form.formState.errors.timeTokenOfferIPFS.message}
                           </p>
                         )}
                       </TabsContent>
                       <TabsContent value="hash" className="pt-4">
                         <FormField
                           control={form.control}
-                          name="contractIPFSHash"
+                          name="timeTokenOfferIPFS"
                           render={({ field }) => (
                             <FormItem>
                               <FormControl>
@@ -790,7 +893,7 @@ export default function CorporateForm() {
                                 />
                               </FormControl>
                               <FormDescription>
-                                Enter an existing IPFS hash for your contract
+                                Enter an existing IPFS hash for your time token offer
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -808,7 +911,7 @@ export default function CorporateForm() {
                       )}
                       <FormField
                         control={form.control}
-                        name="contractIPFSHash"
+                        name="timeTokenOfferIPFS"
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
@@ -820,7 +923,7 @@ export default function CorporateForm() {
                               />
                             </FormControl>
                             <FormDescription>
-                              IPFS hash for your uploaded contract
+                              IPFS hash for your uploaded time token offer
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -895,4 +998,4 @@ export default function CorporateForm() {
       <Toaster position="bottom-right" />
     </div>
   );
-}
+} 

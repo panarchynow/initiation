@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import CorporateForm from "@/components/CorporateForm";
-import PersonalForm from "@/components/PersonalForm";
+import ParticipantForm from "@/components/ParticipantForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 
@@ -24,7 +24,7 @@ export default function CorporatePage() {
           <Tabs defaultValue="corporate" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="personal" asChild>
-                <Link href="/participant">Personal Data</Link>
+                <Link href="/participant">Participant Data</Link>
               </TabsTrigger>
               <TabsTrigger value="corporate" asChild>
                 <Link href="/corporate">Corporate Data</Link>
@@ -33,7 +33,7 @@ export default function CorporatePage() {
             
             <TabsContent value="personal" className="mt-6">
               <div className="form-container">
-                <PersonalForm />
+                <ParticipantForm />
               </div>
             </TabsContent>
             
