@@ -215,6 +215,14 @@ export default function ParticipantForm() {
     mode: "onChange",
   });
 
+  // Проверяем наличие IPFS хеша и устанавливаем соответствующий таб
+  useEffect(() => {
+    const ipfsHash = form.getValues("timeTokenOfferIPFS");
+    if (ipfsHash && ipfsHash.trim() !== "") {
+      setUploadTab("hash");
+    }
+  }, [form]);
+
   // Initialize field array for PartOf fields
   const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
@@ -263,6 +271,11 @@ export default function ParticipantForm() {
             // Сохраняем оригинальное значение
             if (typeof stringValue === 'string') {
               (original as Record<string, unknown>)[formKey] = stringValue;
+              
+              // Если это IPFS хеш, устанавливаем соответствующий таб
+              if (formKey === "timeTokenOfferIPFS" && stringValue.trim() !== "") {
+                setUploadTab("hash");
+              }
             }
           } catch (error) {
             console.error(`Error setting form field ${formKey}:`, error);
@@ -1063,57 +1076,28 @@ export default function ParticipantForm() {
                 <FormItem className="space-y-4">
                   <FormLabel>Time Token Offer IPFS (Optional)</FormLabel>
                   
-                  {!isFileUploaded ? (
-                    <Tabs
-                      defaultValue="file"
-                      value={uploadTab}
-                      onValueChange={setUploadTab}
-                      className="w-full"
-                    >
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="file">Upload File</TabsTrigger>
-                        <TabsTrigger value="hash">IPFS Hash</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="file" className="pt-4">
-                        <FileUploadField 
-                          onUpload={handleFileUpload} 
-                        />
-                        {form.formState.errors.timeTokenOfferIPFS && (
-                          <p className="text-sm font-medium text-destructive mt-2">
-                            {form.formState.errors.timeTokenOfferIPFS.message}
-                          </p>
-                        )}
-                      </TabsContent>
-                      <TabsContent value="hash" className="pt-4">
-                        <FormField
-                          control={form.control}
-                          name="timeTokenOfferIPFS"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input
-                                  placeholder="Enter IPFS hash"
-                                  {...field}
-                                  className="input-glow"
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Enter an existing IPFS hash for your time token offer
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </TabsContent>
-                    </Tabs>
-                  ) : (
-                    <div className="space-y-4">
-                      {uploadedFileInfo && (
-                        <FileUploadField 
-                          onUpload={handleFileUpload} 
-                          fileInfo={uploadedFileInfo}
-                        />
+                  <Tabs
+                    defaultValue="file"
+                    value={uploadTab}
+                    onValueChange={setUploadTab}
+                    className="w-full"
+                  >
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="file">Upload File</TabsTrigger>
+                      <TabsTrigger value="hash">IPFS Hash</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="file" className="pt-4">
+                      <FileUploadField 
+                        onUpload={handleFileUpload} 
+                        fileInfo={uploadedFileInfo}
+                      />
+                      {form.formState.errors.timeTokenOfferIPFS && (
+                        <p className="text-sm font-medium text-destructive mt-2">
+                          {form.formState.errors.timeTokenOfferIPFS.message}
+                        </p>
                       )}
+                    </TabsContent>
+                    <TabsContent value="hash" className="pt-4">
                       <FormField
                         control={form.control}
                         name="timeTokenOfferIPFS"
@@ -1121,21 +1105,20 @@ export default function ParticipantForm() {
                           <FormItem>
                             <FormControl>
                               <Input
-                                placeholder="IPFS hash"
+                                placeholder="Enter IPFS hash"
                                 {...field}
                                 className="input-glow"
-                                disabled
                               />
                             </FormControl>
                             <FormDescription>
-                              IPFS hash for your uploaded time token offer
+                              Enter an existing IPFS hash for your time token offer
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    </div>
-                  )}
+                    </TabsContent>
+                  </Tabs>
                 </FormItem>
               </div>
             </CardContent>

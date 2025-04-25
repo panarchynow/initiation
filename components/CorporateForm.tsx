@@ -80,6 +80,14 @@ export default function CorporateForm() {
     mode: "onChange",
   });
 
+  // Проверяем наличие IPFS хеша и устанавливаем соответствующий таб
+  useEffect(() => {
+    const ipfsHash = form.getValues("contractIPFSHash");
+    if (ipfsHash && ipfsHash.trim() !== "") {
+      setUploadTab("hash");
+    }
+  }, [form]);
+
   // Initialize field array for MyPart fields
   const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
@@ -122,6 +130,11 @@ export default function CorporateForm() {
             // Сохраняем оригинальное значение
             if (typeof stringValue === 'string') {
               (original as Record<string, unknown>)[formKey] = stringValue;
+              
+              // Если это IPFS хеш, устанавливаем соответствующий таб
+              if (formKey === "contractIPFSHash" && stringValue.trim() !== "") {
+                setUploadTab("hash");
+              }
             }
           } catch (error) {
             console.error(`Error setting form field ${formKey}:`, error);
@@ -808,57 +821,28 @@ export default function CorporateForm() {
                 <FormItem className="space-y-4">
                   <FormLabel>Contract IPFS (Optional)</FormLabel>
                   
-                  {!isFileUploaded ? (
-                    <Tabs
-                      defaultValue="file"
-                      value={uploadTab}
-                      onValueChange={setUploadTab}
-                      className="w-full"
-                    >
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="file">Upload File</TabsTrigger>
-                        <TabsTrigger value="hash">IPFS Hash</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="file" className="pt-4">
-                        <FileUploadField 
-                          onUpload={handleFileUpload} 
-                        />
-                        {form.formState.errors.contractIPFSHash && (
-                          <p className="text-sm font-medium text-destructive mt-2">
-                            {form.formState.errors.contractIPFSHash.message}
-                          </p>
-                        )}
-                      </TabsContent>
-                      <TabsContent value="hash" className="pt-4">
-                        <FormField
-                          control={form.control}
-                          name="contractIPFSHash"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input
-                                  placeholder="Enter IPFS hash"
-                                  {...field}
-                                  className="input-glow"
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Enter an existing IPFS hash for your contract
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </TabsContent>
-                    </Tabs>
-                  ) : (
-                    <div className="space-y-4">
-                      {uploadedFileInfo && (
-                        <FileUploadField 
-                          onUpload={handleFileUpload} 
-                          fileInfo={uploadedFileInfo}
-                        />
+                  <Tabs
+                    defaultValue="file"
+                    value={uploadTab}
+                    onValueChange={setUploadTab}
+                    className="w-full"
+                  >
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="file">Upload File</TabsTrigger>
+                      <TabsTrigger value="hash">IPFS Hash</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="file" className="pt-4">
+                      <FileUploadField 
+                        onUpload={handleFileUpload} 
+                        fileInfo={uploadedFileInfo}
+                      />
+                      {form.formState.errors.contractIPFSHash && (
+                        <p className="text-sm font-medium text-destructive mt-2">
+                          {form.formState.errors.contractIPFSHash.message}
+                        </p>
                       )}
+                    </TabsContent>
+                    <TabsContent value="hash" className="pt-4">
                       <FormField
                         control={form.control}
                         name="contractIPFSHash"
@@ -866,21 +850,20 @@ export default function CorporateForm() {
                           <FormItem>
                             <FormControl>
                               <Input
-                                placeholder="IPFS hash"
+                                placeholder="Enter IPFS hash"
                                 {...field}
                                 className="input-glow"
-                                disabled
                               />
                             </FormControl>
                             <FormDescription>
-                              IPFS hash for your uploaded contract
+                              Enter an existing IPFS hash for your contract
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    </div>
-                  )}
+                    </TabsContent>
+                  </Tabs>
                 </FormItem>
               </div>
             </CardContent>
