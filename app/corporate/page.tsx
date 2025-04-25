@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Corporate Data Form - Stellar Integration",
+  title: "Montelibero Initiation | Corporate Data",
   description: "Corporate data form with Stellar blockchain integration",
 };
 
