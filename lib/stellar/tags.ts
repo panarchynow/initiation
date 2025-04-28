@@ -20,6 +20,7 @@ export const TAG_NAMES = [
   "Developer",
   "Designer",
   "Investor",
+  "Charity",
   "Blockchain",
   "Crypto",
   "NFT",
