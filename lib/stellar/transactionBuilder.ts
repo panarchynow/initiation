@@ -78,7 +78,12 @@ export async function buildTransaction(
   });
 
   // Add a timebound
-  transaction.setTimeout(config.TIMEOUT_MINUTES * 60);
+  if (config.TIMEOUT_INFINITE) {
+    // Use TimeoutInfinite constant for infinite timeout
+    transaction.setTimeout(StellarSdk.TimeoutInfinite);
+  } else {
+    transaction.setTimeout(config.TIMEOUT_MINUTES * 60);
+  }
 
   // Required fields
   addManageDataOperation(transaction, MANAGE_DATA_KEYS.NAME, formData.name, deps.operationFactory);

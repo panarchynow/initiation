@@ -29,6 +29,8 @@ const networkConfig = getNetworkConfig();
 export const STELLAR_CONFIG = {
   SERVER_URL: networkConfig.SERVER_URL,
   NETWORK: networkConfig.NETWORK,
-  TIMEOUT_MINUTES: 30,
-  BASE_FEE: StellarSdk.BASE_FEE
+  TIMEOUT_MINUTES: 0, // Setting to 0 for infinite timeout
+  BASE_FEE: StellarSdk.BASE_FEE,
+  // Add TimeoutInfinite constant for use in the transaction builder
+  TIMEOUT_INFINITE: true
 }; 
