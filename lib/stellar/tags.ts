@@ -14,9 +14,8 @@ export interface TagDefinition {
 
 // Базовые ключевые слова для тегов
 export const TAG_NAMES = [
-  "Belgrade", 
-  "Montenegro", 
-  "Programmer", 
+  "Belgrade",
+  "Montenegro",
   "Blogger",
   "Developer",
   "Designer",
@@ -41,7 +40,7 @@ export const TAG_NAMES = [
 // Функции форматирования тегов
 export const formatTagKey = (name: string): string => `Tag${name}`;
 export const formatTagId = (name: string): string => name.toLowerCase();
-export const formatTagLabel = (name: string): string => 
+export const formatTagLabel = (name: string): string =>
   name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 
 // Получить полное определение тега по имени
@@ -88,7 +87,7 @@ export function addTagOperationsToTransaction<T extends { addOperation: (...args
   accountId: string,
   tagIds: string[] | undefined,
   accountDataAttributes: Record<string, string | Buffer>,
-  operationFactory: { manageData: (params: {name: string, value: string | null}) => unknown },
+  operationFactory: { manageData: (params: { name: string, value: string | null }) => unknown },
   tagByIdFn = getTagById
 ) {
   // Получаем существующие теги из данных аккаунта
@@ -98,7 +97,7 @@ export function addTagOperationsToTransaction<T extends { addOperation: (...args
       existingTags.add(key);
     }
   }
-  
+
   // Создаем набор тегов, которые будут установлены в форме
   const formTagsSet = new Set<string>();
   if (tagIds && tagIds.length > 0) {
@@ -118,7 +117,7 @@ export function addTagOperationsToTransaction<T extends { addOperation: (...args
       }
     }
   }
-  
+
   // Находим теги, которые были удалены (существуют в аккаунте, но отсутствуют в форме)
   for (const existingTag of Array.from(existingTags)) {
     if (!formTagsSet.has(existingTag)) {
