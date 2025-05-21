@@ -71,6 +71,10 @@ export const formSchema = z.object({
     .refine((val) => !val || validateByteLength(val), {
       message: `Website URL must not exceed ${MAX_BYTE_SIZE} bytes in UTF-8 encoding`,
     }),
+  mtlaPiiStandard: z
+    .boolean()
+    .optional()
+    .default(false),
   myParts: z.array(
     z.object({
       id: z.string().regex(/^\d+$/, "ID must contain only numbers"),

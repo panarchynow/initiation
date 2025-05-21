@@ -18,6 +18,8 @@ This module handles interactions with the Stellar blockchain, focusing on managi
     -   Maps form fields (`name`, `about`, `website`, etc.) to predefined data entry keys (`MANAGE_DATA_KEYS`).
     -   Handles `MyPart` entries by filtering out duplicates (both from the submitted form and existing blockchain data) and generating new sequential IDs using `mypart.ts` only for the unique new entries, then adding `manageData` operations for each.
     -   Handles tags by looking up tag definitions using `tags.ts` and adding `manageData` operations.
+    -   Contains `STANDARD_VALUES` constant to store standardized values for special data entries like the MTLA PII Standard.
+    -   Includes special handling for standards like MTLA PII - adds the value when enabled or removes it when disabled.
     -   Returns the built (but unsigned) transaction.
 -   **`transactionGenerator.ts`**: Orchestrates transaction creation. `generateStellarTransaction` takes form data:
     -   Loads the source account using `server.ts` and `formData.accountId`.
@@ -52,5 +54,6 @@ This module handles interactions with the Stellar blockchain, focusing on managi
 -   **ManageData Operation**: Stellar operation type used to add, modify, or delete data entries.
 -   **Tags**: Predefined categories represented by specific data entry keys (`Tag<n>`).
 -   **MyPart**: Custom data entries, sequentially numbered (`MyPart<NNN>`), likely representing parts or shares associated with the account.
+-   **Standards**: Predefined data entries with specific values representing compliance with standards (like MTLA PII Standard).
 -   **XDR**: External Data Representation format used by Stellar for transactions.
 -   **SEP-0007**: Stellar Ecosystem Proposal defining a URI scheme for requesting transaction signatures from wallets. 

@@ -8,7 +8,7 @@ import type { FormSchema } from "@/lib/validation";
 import { formSchema, calculateByteLength } from "@/lib/validation";
 import { generateStellarTransaction } from "@/lib/stellar/index";
 import { fetchAccountDataAttributes } from "@/lib/stellar/account";
-import { MANAGE_DATA_KEYS } from "@/lib/stellar/transactionBuilder";
+import { MANAGE_DATA_KEYS, STANDARD_VALUES } from "@/lib/stellar/transactionBuilder";
 import { getTagByKey } from "@/lib/stellar/tags";
 import { extractMyPartId, formatMyPartKey } from "@/lib/stellar/mypart";
 import { StrKey } from "stellar-sdk";
@@ -32,6 +32,7 @@ import * as StellarSdk from "stellar-sdk";
 import { STELLAR_CONFIG } from "@/lib/stellar/config";
 import { addStellarUri } from "@/lib/stellarUriService";
 import { buildSep7TransactionUri } from "@/lib/stellar/sep7UriBuilder";
+import { Switch } from "@/components/ui/switch";
 
 export default function CorporateForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,6 +74,7 @@ export default function CorporateForm() {
       telegramPartChatID: "",
       tags: [],
       contractIPFSHash: "",
+      mtlaPiiStandard: false,
     },
     mode: "onChange",
   });
@@ -95,6 +97,7 @@ export default function CorporateForm() {
         website?: string;
         contractIPFSHash?: string;
         telegramPartChatID?: string;
+        mtlaPiiStandard?: boolean;
         myParts?: Array<{id: string, accountId: string}>;
         tags?: string[];
       } = {};
@@ -124,6 +127,13 @@ export default function CorporateForm() {
             console.error(`Error setting form field ${formKey}:`, error);
           }
         }
+      }
+      
+      // Проверяем наличие MTLA PII Standard
+      if (dataAttributes[MANAGE_DATA_KEYS.MTLA_PII_STANDARD]) {
+        console.log('MTLA PII Standard found, enabling toggle');
+        form.setValue('mtlaPiiStandard', true, { shouldValidate: true });
+        original.mtlaPiiStandard = true;
       }
       
       // Обрабатываем MyPart
@@ -271,6 +281,8 @@ export default function CorporateForm() {
       
       // Создаём объект только с изменёнными данными, если есть оригинальные данные
       const changedData: FormSchema = { ...data };
+      // Флаг для отслеживания, нужно ли обрабатывать mtlaPiiStandard
+      let includeMtlaPiiStandard = true;
       
       if (Object.keys(originalFormData).length > 0) {
         // Проверяем и обрабатываем стандартные поля
@@ -292,6 +304,12 @@ export default function CorporateForm() {
         
         if (originalFormData.telegramPartChatID === data.telegramPartChatID) {
           changedData.telegramPartChatID = "";
+        }
+        
+        // Проверяем, изменилось ли поле mtlaPiiStandard
+        if (originalFormData.mtlaPiiStandard === data.mtlaPiiStandard) {
+          // Если значение не изменилось, не включаем его в транзакцию
+          includeMtlaPiiStandard = false;
         }
         
         // My Parts требуют особой обработки, так как это массив
@@ -447,6 +465,27 @@ export default function CorporateForm() {
                   value: changedData.contractIPFSHash
                 })
               );
+            }
+            
+            // Обрабатываем MTLA PII Standard
+            if (includeMtlaPiiStandard) {
+              if (changedData.mtlaPiiStandard) {
+                // Добавляем ключ, если тоггл включен
+                transaction.addOperation(
+                  StellarSdk.Operation.manageData({
+                    name: MANAGE_DATA_KEYS.MTLA_PII_STANDARD,
+                    value: STANDARD_VALUES.MTLA_PII
+                  })
+                );
+              } else if (originalFormData.mtlaPiiStandard) {
+                // Удаляем ключ, если тоггл был включен, но сейчас выключен
+                transaction.addOperation(
+                  StellarSdk.Operation.manageData({
+                    name: MANAGE_DATA_KEYS.MTLA_PII_STANDARD,
+                    value: null // null означает удаление
+                  })
+                );
+              }
             }
             
             // Обрабатываем теги
@@ -655,6 +694,28 @@ export default function CorporateForm() {
                         Your company website URL
                       </FormDescription>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* MTLA PII Standard Toggle */}
+                <FormField
+                  control={form.control}
+                  name="mtlaPiiStandard"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between space-x-2 space-y-0 rounded-md border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel>MTLA PII Standard</FormLabel>
+                        <FormDescription>
+                          Add MTLA PII Standard certification to your corporate identity
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
                     </FormItem>
                   )}
                 />

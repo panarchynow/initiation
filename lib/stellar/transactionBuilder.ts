@@ -7,6 +7,11 @@ import { STELLAR_CONFIG } from './config';
 import { getTagById, addTagOperationsToTransaction } from './tags';
 import { formatMyPartKey, generateMyPartIds } from './mypart';
 
+// Значения для стандартов
+export const STANDARD_VALUES = {
+  MTLA_PII: "e7bb8bb6e84bf2182294490c5b588fc175bbc0b0898d10d5caabb7c006a42672"
+};
+
 // ManageData operation keys
 export const MANAGE_DATA_KEYS = {
   NAME: "Name",
@@ -19,7 +24,9 @@ export const MANAGE_DATA_KEYS = {
   TIME_TOKEN_CODE: "TimeTokenCode",  
   TIME_TOKEN_ISSUER: "TimeTokenIssuer",
   TIME_TOKEN_DESC: "TimeTokenDesc",
-  TIME_TOKEN_OFFER_IPFS: "TimeTokenOfferIPFS"
+  TIME_TOKEN_OFFER_IPFS: "TimeTokenOfferIPFS",
+  // Ключ для PII стандарта
+  MTLA_PII_STANDARD: "MTLA: PII Standard"
 };
 
 // Types for dependencies to make DI easier
@@ -91,6 +98,24 @@ export async function buildTransaction(
   
   // Optional fields
   addManageDataOperation(transaction, MANAGE_DATA_KEYS.WEBSITE, formData.website, deps.operationFactory);
+  
+  // MTLA PII Standard
+  if (formData.mtlaPiiStandard) {
+    transaction.addOperation(
+      deps.operationFactory.manageData({
+        name: MANAGE_DATA_KEYS.MTLA_PII_STANDARD,
+        value: STANDARD_VALUES.MTLA_PII
+      })
+    );
+  } else if (accountDataAttributes[MANAGE_DATA_KEYS.MTLA_PII_STANDARD]) {
+    // Если ключ существует на аккаунте, но отключен в форме - удаляем его
+    transaction.addOperation(
+      deps.operationFactory.manageData({
+        name: MANAGE_DATA_KEYS.MTLA_PII_STANDARD,
+        value: null // null означает удаление
+      })
+    );
+  }
   
   // Handle multiple MyPart entries
   if (formData.myParts && formData.myParts.length > 0) {
