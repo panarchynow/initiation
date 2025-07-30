@@ -78,6 +78,8 @@ export async function buildTransaction(
     addTagOperationsToTransaction
   }
 ) {
+  console.log('buildTransaction called with formData:', formData);
+  console.log('buildTransaction formData.accountId:', formData.accountId);
   // Setup a transaction builder
   const transaction = new deps.transactionBuilderFactory(account, {
     fee: config.BASE_FEE,
@@ -92,75 +94,111 @@ export async function buildTransaction(
     transaction.setTimeout(config.TIMEOUT_MINUTES * 60);
   }
 
-  // Required fields
-  addManageDataOperation(transaction, MANAGE_DATA_KEYS.NAME, formData.name, deps.operationFactory);
-  addManageDataOperation(transaction, MANAGE_DATA_KEYS.ABOUT, formData.about, deps.operationFactory);
+  // Only process fields that are present in formData (changed fields)
+  if (formData.name !== undefined) {
+    addManageDataOperation(transaction, MANAGE_DATA_KEYS.NAME, formData.name, deps.operationFactory);
+  }
+  
+  if (formData.about !== undefined) {
+    addManageDataOperation(transaction, MANAGE_DATA_KEYS.ABOUT, formData.about, deps.operationFactory);
+  }
   
   // Optional fields
-  addManageDataOperation(transaction, MANAGE_DATA_KEYS.WEBSITE, formData.website, deps.operationFactory);
+  if (formData.website !== undefined) {
+    addManageDataOperation(transaction, MANAGE_DATA_KEYS.WEBSITE, formData.website, deps.operationFactory);
+  }
   
-  // MTLA PII Standard
-  if (formData.mtlaPiiStandard) {
-    transaction.addOperation(
-      deps.operationFactory.manageData({
-        name: MANAGE_DATA_KEYS.MTLA_PII_STANDARD,
-        value: STANDARD_VALUES.MTLA_PII
-      })
-    );
-  } else if (accountDataAttributes[MANAGE_DATA_KEYS.MTLA_PII_STANDARD]) {
-    // Если ключ существует на аккаунте, но отключен в форме - удаляем его
-    transaction.addOperation(
-      deps.operationFactory.manageData({
-        name: MANAGE_DATA_KEYS.MTLA_PII_STANDARD,
-        value: null // null означает удаление
-      })
-    );
+  // MTLA PII Standard - only process if field is present (changed)
+  if (formData.mtlaPiiStandard !== undefined) {
+    if (formData.mtlaPiiStandard) {
+      transaction.addOperation(
+        deps.operationFactory.manageData({
+          name: MANAGE_DATA_KEYS.MTLA_PII_STANDARD,
+          value: STANDARD_VALUES.MTLA_PII
+        })
+      );
+    } else if (accountDataAttributes[MANAGE_DATA_KEYS.MTLA_PII_STANDARD]) {
+      // Если ключ существует на аккаунте, но отключен в форме - удаляем его
+      transaction.addOperation(
+        deps.operationFactory.manageData({
+          name: MANAGE_DATA_KEYS.MTLA_PII_STANDARD,
+          value: null // null означает удаление
+        })
+      );
+    }
   }
   
   // Handle multiple MyPart entries
-  if (formData.myParts && formData.myParts.length > 0) {
-    // 1. Get existing MyPart account IDs from blockchain data
-    const existingBlockchainAccountIds = new Set<string>();
+  if (formData.myParts !== undefined) {
+    console.log('Processing myParts:', formData.myParts);
+    console.log('Original myParts:', (formData as any).originalMyParts);
+    console.log('Main accountId still:', formData.accountId);
+
+    const currentMyParts = formData.myParts || [];
+    const originalMyParts = (formData as any).originalMyParts || [];
+
+    // 1. Get existing MyPart entries from blockchain data with their keys
+    const existingMyPartEntries = new Map<string, string>(); // accountId -> key
     for (const key in accountDataAttributes) {
-      // Use a regex to check if the key matches the pattern MyPart<digits>
-      if (/^MyPart\d+$/.test(key)) { 
+      if (/^MyPart\d+$/.test(key)) {
         const value = accountDataAttributes[key];
-        // Handle both string and Buffer types correctly
         const accountId = value instanceof Buffer ? value.toString('utf8') : value;
         if (typeof accountId === 'string') {
-          existingBlockchainAccountIds.add(accountId);
+          existingMyPartEntries.set(accountId, key);
         }
       }
     }
 
-    // 2. Filter formData.myParts: remove duplicates within the form and existing ones from blockchain
-    const seenFormAccountIds = new Set<string>();
-    const partsToAdd = formData.myParts.filter(part => {
-      // Check if already seen in this form submission or exists on blockchain
-      const alreadyExists = seenFormAccountIds.has(part.accountId) || existingBlockchainAccountIds.has(part.accountId);
-      if (!alreadyExists) {
-        seenFormAccountIds.add(part.accountId);
-        return true; // Keep this part
+    // 2. Find entries to delete (in original but not in current)
+    const originalAccountIds = new Set<string>(originalMyParts.map((part: any) => part.accountId));
+    const currentAccountIds = new Set<string>(currentMyParts.map(part => part.accountId));
+    
+    console.log('Original account IDs:', Array.from(originalAccountIds));
+    console.log('Current account IDs:', Array.from(currentAccountIds));
+
+    // Delete entries that were removed
+    originalAccountIds.forEach(accountId => {
+      if (!currentAccountIds.has(accountId) && existingMyPartEntries.has(accountId)) {
+        const keyToDelete = existingMyPartEntries.get(accountId)!;
+        console.log(`Deleting MyPart entry: ${keyToDelete} (${accountId})`);
+        transaction.addOperation(
+          deps.operationFactory.manageData({
+            name: keyToDelete,
+            value: null // null означает удаление
+          })
+        );
       }
-      return false; // Discard this part
     });
 
-    // 3. Generate IDs only for the parts that need to be added
-    const newIds = deps.generateMyPartIds(accountDataAttributes, partsToAdd.length);
-    
-    // 4. Add operations for the filtered parts using the generated IDs
-    partsToAdd.forEach((part, index) => {
-      const myPartId = newIds[index];
-      const myPartKey = deps.formatMyPartKey(myPartId);
+    // 3. Add new entries (in current but not in original)
+    const newEntries = currentMyParts.filter(part => 
+      !originalAccountIds.has(part.accountId) && !existingMyPartEntries.has(part.accountId)
+    );
+
+    if (newEntries.length > 0) {
+      console.log('Adding new MyPart entries:', newEntries);
       
-      addManageDataOperation(transaction, myPartKey, part.accountId, deps.operationFactory);
-    });
+      // Generate IDs only for the new parts
+      const newIds = deps.generateMyPartIds(accountDataAttributes, newEntries.length);
+      
+      // Add operations for the new parts
+      newEntries.forEach((part, index) => {
+        const myPartId = newIds[index];
+        const myPartKey = deps.formatMyPartKey(myPartId);
+        console.log(`Adding MyPart entry: ${myPartKey} (${part.accountId})`);
+        
+        addManageDataOperation(transaction, myPartKey, part.accountId, deps.operationFactory);
+      });
+    }
   }
 
-  addManageDataOperation(transaction, MANAGE_DATA_KEYS.TELEGRAM_PART_CHAT_ID, formData.telegramPartChatID, deps.operationFactory);
+  // Process telegramPartChatID only if present (changed)
+  if (formData.telegramPartChatID !== undefined) {
+    addManageDataOperation(transaction, MANAGE_DATA_KEYS.TELEGRAM_PART_CHAT_ID, formData.telegramPartChatID, deps.operationFactory);
+  }
   
-  // Handle tags - add individual tag operations if the tag is selected
-  if (formData.accountId) {
+  // Handle tags - add individual tag operations if the tag is selected and tags field is present (changed)
+  if (formData.accountId && formData.tags !== undefined) {
     deps.addTagOperationsToTransaction(
       transaction,
       formData.accountId,
@@ -171,7 +209,10 @@ export async function buildTransaction(
     );
   }
   
-  addManageDataOperation(transaction, MANAGE_DATA_KEYS.CONTRACT_IPFS, formData.contractIPFSHash, deps.operationFactory);
+  // Process contractIPFSHash only if present (changed)
+  if (formData.contractIPFSHash !== undefined) {
+    addManageDataOperation(transaction, MANAGE_DATA_KEYS.CONTRACT_IPFS, formData.contractIPFSHash, deps.operationFactory);
+  }
 
   // Build the transaction
   return transaction.build();

@@ -13,12 +13,17 @@ export async function generateStellarTransaction(
   server = createStellarServer()
 ) {
   try {
+    console.log('generateStellarTransaction received formData:', formData);
+    console.log('formData.accountId:', formData.accountId);
+    
     // Generate random keypair if accountId is not provided
     if (!formData.accountId) {
       const keypair = Keypair.random();
       formData.accountId = keypair.publicKey();
+      console.log('Generated new random accountId:', formData.accountId);
     }
     
+    console.log('About to load account:', formData.accountId);
     // Load account from Stellar blockchain
     const accountData = await server.loadAccount(formData.accountId);
     
