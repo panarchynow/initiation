@@ -1,0 +1,33 @@
+---
+description: Rules for working with forms and validation in the project
+globs: components/*Form.tsx,components/form/*.tsx,lib/validation.ts
+alwaysApply: false
+---
+# Form Components and Validation
+
+## Form Architecture
+- **Main Forms**: [CorporateForm.tsx](mdc:components/CorporateForm.tsx) and [ParticipantForm.tsx](mdc:components/ParticipantForm.tsx)
+- **Form Fields**: Custom form components in [components/form/](mdc:components/form) directory
+- **Validation**: Centralized validation logic in [lib/validation.ts](mdc:lib/validation.ts)
+
+## Form Components Guidelines
+- All forms use React Hook Form with Zod validation
+- Form fields are composable components in [components/form/](mdc:components/form)
+- File upload functionality is handled by [FileUploadField.tsx](mdc:components/form/FileUploadField.tsx)
+- Tag selection is handled by [TagSelector.tsx](mdc:components/form/TagSelector.tsx)
+
+## Validation Rules
+- Use Zod schemas defined in [lib/validation.ts](mdc:lib/validation.ts)
+- Validation schemas should be exported and reused across forms and API routes
+- Error messages should be user-friendly and in appropriate language based on context
+
+## Form State Management
+- Use React Hook Form for form state
+- Handle loading states during submission
+- Implement proper error handling and user feedback
+- Reset forms after successful submission
+
+## File Upload Integration
+- File uploads are processed via [api/upload/route.ts](mdc:app/api/upload/route.ts)
+- Upload utility functions are in [lib/upload.ts](mdc:lib/upload.ts)
+- Handle file validation, size limits, and type restrictions

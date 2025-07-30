@@ -1,0 +1,35 @@
+---
+description: API routes and server-side functionality
+globs: app/api/**/*.ts,lib/stellarUriService.ts
+alwaysApply: false
+---
+# API Routes and Server Integration
+
+## API Structure
+- **Upload Endpoint**: [app/api/upload/route.ts](mdc:app/api/upload/route.ts) - handles file uploads
+- **Stellar URI Endpoint**: [app/api/stellar-uri/route.ts](mdc:app/api/stellar-uri/route.ts) - generates Stellar payment URIs
+- **URI Service**: [lib/stellarUriService.ts](mdc:lib/stellarUriService.ts) - Stellar URI generation logic
+
+## API Development Guidelines
+- Use Next.js App Router API routes pattern
+- Implement proper error handling with appropriate HTTP status codes
+- Validate request data using Zod schemas from [lib/validation.ts](mdc:lib/validation.ts)
+- Return consistent JSON response formats
+
+## Request/Response Patterns
+- **POST requests**: Include request body validation
+- **Error responses**: Use standard error format with message and status
+- **Success responses**: Return data in consistent structure
+- **File uploads**: Handle multipart/form-data requests
+
+## Stellar Integration
+- Stellar URI generation follows SEP-0007 standard
+- Use utilities from [lib/stellar/](mdc:lib/stellar) for blockchain operations
+- Implement proper transaction building and validation
+- Handle Stellar network configurations (testnet/mainnet)
+
+## Security Considerations
+- Validate all input data
+- Implement rate limiting where appropriate
+- Handle file upload security (type validation, size limits)
+- Sanitize data before processing

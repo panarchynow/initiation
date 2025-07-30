@@ -1,0 +1,46 @@
+---
+description: Project structure and architecture overview
+globs: app/**/*.tsx,components/**/*.tsx
+alwaysApply: false
+---
+# Project Structure and Architecture
+
+## Application Structure
+- **Next.js App Router**: Main application in [app/](mdc:app) directory
+- **Pages**: 
+  - Root: [app/page.tsx](mdc:app/page.tsx)
+  - Corporate: [app/corporate/page.tsx](mdc:app/corporate/page.tsx)
+  - Participant: [app/participant/page.tsx](mdc:app/participant/page.tsx)
+
+## Component Organization
+- **UI Components**: Reusable components in [components/ui/](mdc:components/ui)
+- **Form Components**: Form-specific components in [components/form/](mdc:components/form)
+- **Main Components**: Application-specific components in [components/](mdc:components)
+
+## Library Structure
+- **Utilities**: Helper functions in [lib/utils.ts](mdc:lib/utils.ts)
+- **Stellar Integration**: Blockchain utilities in [lib/stellar/](mdc:lib/stellar)
+- **Validation**: Form and data validation in [lib/validation.ts](mdc:lib/validation.ts)
+- **File Upload**: Upload utilities in [lib/upload.ts](mdc:lib/upload.ts)
+
+## Layout Pattern
+- **Root Layout**: [app/layout.tsx](mdc:app/layout.tsx) - global layout and providers
+- **Page Layouts**: Specific layouts for corporate and participant sections
+- **Theme Provider**: [components/ThemeProvider.tsx](mdc:components/ThemeProvider.tsx) for theme management
+
+## Route Organization
+- **Corporate Flow**: `/corporate` - for corporate user registration
+- **Participant Flow**: `/participant` - for participant registration
+- **API Routes**: `/api/*` - server-side endpoints
+
+## Configuration Files
+- **Next.js**: [next.config.js](mdc:next.config.js)
+- **TypeScript**: [tsconfig.json](mdc:tsconfig.json)
+- **Tailwind**: [tailwind.config.ts](mdc:tailwind.config.ts)
+- **Components**: [components.json](mdc:components.json)
+
+## Development Workflow
+- Follow user-specific rules: Russian for communication, English for code
+- Implement KISS, DRY, and YAGNI principles
+- Never modify server state during development
+- Test all changes thoroughly before deployment

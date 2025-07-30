@@ -1,0 +1,36 @@
+---
+description: Rules for UI components and design system
+globs: components/ui/*.tsx,app/globals.css,tailwind.config.ts
+alwaysApply: false
+---
+# UI Components and Design System
+
+## Component Library
+- **Base Components**: shadcn/ui components in [components/ui/](mdc:components/ui) directory
+- **Configuration**: Component library config in [components.json](mdc:components.json)
+- **Theme Provider**: Custom theme handling in [ThemeProvider.tsx](mdc:components/ThemeProvider.tsx)
+
+## Styling Guidelines
+- **CSS Framework**: Tailwind CSS with config in [tailwind.config.ts](mdc:tailwind.config.ts)
+- **Global Styles**: Base styles in [app/globals.css](mdc:app/globals.css)
+- **Utility Functions**: Use `cn()` utility from [lib/utils.ts](mdc:lib/utils.ts) for conditional classes
+
+## Component Standards
+- Follow shadcn/ui conventions for component structure
+- Use TypeScript interfaces for component props
+- Implement proper accessibility attributes
+- Support theme variations through CSS variables
+
+## Available Components
+Key UI components include:
+- Form components: `form`, `input`, `textarea`, `select`, `checkbox`, `radio-group`
+- Layout: `card`, `separator`, `sheet`, `dialog`
+- Navigation: `navigation-menu`, `breadcrumb`, `tabs`
+- Feedback: `toast`, `alert`, `progress`, `skeleton`
+- Data display: `table`, `badge`, `avatar`, `tooltip`
+
+## Component Usage
+- Import components from `@/components/ui/[component-name]`
+- Use composition over configuration
+- Extend components through className prop when needed
+- Maintain consistent spacing and sizing using Tailwind utilities

@@ -1,0 +1,42 @@
+---
+description: Stellar blockchain integration and transaction handling
+globs: lib/stellar/*.ts,app/api/stellar-uri/route.ts
+alwaysApply: false
+---
+# Stellar Blockchain Integration
+
+## Core Stellar Modules
+- **Account Management**: [lib/stellar/account.ts](mdc:lib/stellar/account.ts) - Stellar account operations
+- **Transaction Building**: [lib/stellar/transactionBuilder.ts](mdc:lib/stellar/transactionBuilder.ts) - create transactions
+- **Transaction Verification**: [lib/stellar/transactionVerifier.ts](mdc:lib/stellar/transactionVerifier.ts) - validate transactions
+- **SEP-7 URI Builder**: [lib/stellar/sep7UriBuilder.ts](mdc:lib/stellar/sep7UriBuilder.ts) - payment URI generation
+
+## Transaction Types
+- **Personal Transactions**: [lib/stellar/personalTransaction.ts](mdc:lib/stellar/personalTransaction.ts)
+- **Participant Transactions**: [lib/stellar/participantTransaction.ts](mdc:lib/stellar/participantTransaction.ts)
+- **Part-of Transactions**: [lib/stellar/partof.ts](mdc:lib/stellar/partof.ts)
+- **My Part Transactions**: [lib/stellar/mypart.ts](mdc:lib/stellar/mypart.ts)
+
+## Configuration and Setup
+- **Network Config**: [lib/stellar/config.ts](mdc:lib/stellar/config.ts) - Stellar network settings
+- **Server Utils**: [lib/stellar/server.ts](mdc:lib/stellar/server.ts) - Stellar server interactions
+- **Tags System**: [lib/stellar/tags.ts](mdc:lib/stellar/tags.ts) - transaction tagging
+
+## Development Guidelines
+- Always consult [lib/stellar/README.md](mdc:lib/stellar/README.md) before making changes
+- Use proper error handling for network operations
+- Implement transaction validation before submission
+- Follow Stellar SDK best practices
+- Test transactions on testnet before mainnet deployment
+
+## Testing
+- All modules have corresponding `.spec.ts` test files
+- Use Stellar SDK testing utilities
+- Mock network calls for unit tests
+- Validate transaction XDR generation
+
+## SEP-0007 Payment URIs
+- Follow SEP-0007 standard for payment URI generation
+- Include proper transaction metadata
+- Handle multiple signature requirements
+- Support both simple and complex transaction flows
