@@ -6,6 +6,7 @@ import * as StellarSdk from '@stellar/stellar-sdk';
 import { STELLAR_CONFIG } from './config';
 import { getTagById, addTagOperationsToTransaction } from './tags';
 import { formatMyPartKey, generateMyPartIds } from './mypart';
+import { formatPartOfKey, generatePartOfIds } from './partof';
 
 // Значения для стандартов
 export const STANDARD_VALUES = {
@@ -31,7 +32,7 @@ export const MANAGE_DATA_KEYS = {
 
 // Types for dependencies to make DI easier
 export type OperationFactory = {
-  manageData: (params: {name: string, value: string}) => unknown;
+  manageData: (params: {name: string, value: string | null}) => unknown;
 };
 
 export type TransactionInstance = {
@@ -48,12 +49,26 @@ export type TransactionBuilderFactory = {
 function addManageDataOperation(
   transaction: TransactionInstance,
   name: string, 
-  value: string | undefined,
+  value: string | null | undefined,
   operationFactory: OperationFactory
 ) {
-  // Если значение пустое или undefined, считаем, что оно не изменилось и не добавляем операцию
-  if (!value || value === "") return;
+  // Skip only if value is undefined (field not changed)
+  if (value === undefined) return;
   
+  // For null values (deletion) or empty strings, create deletion operation
+  if (value === null || value === "") {
+    console.log(`Adding deletion operation for field: ${name}`);
+    transaction.addOperation(
+      operationFactory.manageData({
+        name,
+        value: null // Explicit null for deletion
+      })
+    );
+    return;
+  }
+  
+  // For non-empty values, create update operation
+  console.log(`Adding update operation for field: ${name} = "${value}"`);
   transaction.addOperation(
     operationFactory.manageData({
       name,
@@ -192,6 +207,69 @@ export async function buildTransaction(
     }
   }
 
+  // Handle multiple PartOf entries (for participant forms)
+  if (formData.partOf !== undefined) {
+    console.log('Processing partOf:', formData.partOf);
+    console.log('Original partOf:', (formData as any).originalPartOf);
+
+    const currentPartOf = formData.partOf || [];
+    const originalPartOf = (formData as any).originalPartOf || [];
+
+    // 1. Get existing PartOf entries from blockchain data with their keys
+    const existingPartOfEntries = new Map<string, string>(); // accountId -> key
+    for (const key in accountDataAttributes) {
+      if (/^PartOf\d+$/.test(key)) {
+        const value = accountDataAttributes[key];
+        const accountId = value instanceof Buffer ? value.toString('utf8') : value;
+        if (typeof accountId === 'string') {
+          existingPartOfEntries.set(accountId, key);
+        }
+      }
+    }
+
+    // 2. Find entries to delete (in original but not in current)
+    const originalAccountIds = new Set<string>(originalPartOf.map((part: any) => part.accountId));
+    const currentAccountIds = new Set<string>(currentPartOf.map(part => part.accountId));
+    
+    console.log('PartOf - Original account IDs:', Array.from(originalAccountIds));
+    console.log('PartOf - Current account IDs:', Array.from(currentAccountIds));
+
+    // Delete entries that were removed
+    originalAccountIds.forEach(accountId => {
+      if (!currentAccountIds.has(accountId) && existingPartOfEntries.has(accountId)) {
+        const keyToDelete = existingPartOfEntries.get(accountId)!;
+        console.log(`Deleting PartOf entry: ${keyToDelete} (${accountId})`);
+        transaction.addOperation(
+          deps.operationFactory.manageData({
+            name: keyToDelete,
+            value: null // null означает удаление
+          })
+        );
+      }
+    });
+
+    // 3. Add new entries (in current but not in original)
+    const newEntries = currentPartOf.filter(part => 
+      !originalAccountIds.has(part.accountId) && !existingPartOfEntries.has(part.accountId)
+    );
+
+    if (newEntries.length > 0) {
+      console.log('Adding new PartOf entries:', newEntries);
+      
+      // Generate IDs only for the new parts
+      const newIds = generatePartOfIds(accountDataAttributes, newEntries.length);
+      
+      // Add operations for the new parts
+      newEntries.forEach((part, index) => {
+        const partOfId = newIds[index];
+        const partOfKey = formatPartOfKey(partOfId);
+        console.log(`Adding PartOf entry: ${partOfKey} (${part.accountId})`);
+        
+        addManageDataOperation(transaction, partOfKey, part.accountId, deps.operationFactory);
+      });
+    }
+  }
+
   // Process telegramPartChatID only if present (changed)
   if (formData.telegramPartChatID !== undefined) {
     addManageDataOperation(transaction, MANAGE_DATA_KEYS.TELEGRAM_PART_CHAT_ID, formData.telegramPartChatID, deps.operationFactory);
@@ -212,6 +290,27 @@ export async function buildTransaction(
   // Process contractIPFSHash only if present (changed)
   if (formData.contractIPFSHash !== undefined) {
     addManageDataOperation(transaction, MANAGE_DATA_KEYS.CONTRACT_IPFS, formData.contractIPFSHash, deps.operationFactory);
+  }
+
+  // Process participant-specific fields (for participant forms)
+  if (formData.telegramUserID !== undefined) {
+    addManageDataOperation(transaction, MANAGE_DATA_KEYS.TELEGRAM_USER_ID, formData.telegramUserID, deps.operationFactory);
+  }
+  
+  if (formData.timeTokenCode !== undefined) {
+    addManageDataOperation(transaction, MANAGE_DATA_KEYS.TIME_TOKEN_CODE, formData.timeTokenCode, deps.operationFactory);
+  }
+  
+  if (formData.timeTokenIssuer !== undefined) {
+    addManageDataOperation(transaction, MANAGE_DATA_KEYS.TIME_TOKEN_ISSUER, formData.timeTokenIssuer, deps.operationFactory);
+  }
+  
+  if (formData.timeTokenDesc !== undefined) {
+    addManageDataOperation(transaction, MANAGE_DATA_KEYS.TIME_TOKEN_DESC, formData.timeTokenDesc, deps.operationFactory);
+  }
+  
+  if (formData.timeTokenOfferIPFS !== undefined) {
+    addManageDataOperation(transaction, MANAGE_DATA_KEYS.TIME_TOKEN_OFFER_IPFS, formData.timeTokenOfferIPFS, deps.operationFactory);
   }
 
   // Build the transaction

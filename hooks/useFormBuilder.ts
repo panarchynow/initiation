@@ -33,10 +33,10 @@ export function useFormBuilder<T extends BaseFormData>(
 
   // Transaction generation
   const transactionConfig = {
-    generateTransaction: async (data: any) => {
+    generateTransaction: config.transactionConfig?.generateTransaction || (async (data: any) => {
       const { generateStellarTransaction } = await import("@/lib/stellar/transactionGenerator");
       return generateStellarTransaction(data);
-    },
+    }),
   };
 
   const {
@@ -79,7 +79,7 @@ export function useFormBuilder<T extends BaseFormData>(
 
     try {
       const processedData = processChangedData(data);
-      await generateTransaction(processedData, accountDataHook.originalFormData);
+      await generateTransaction(processedData, accountDataHook.originalFormData as any);
 
       // Scroll to transaction result
       setTimeout(() => {

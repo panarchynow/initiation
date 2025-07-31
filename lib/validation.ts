@@ -112,6 +112,27 @@ export const formSchema = z.object({
     .refine((val) => !val || validateIPFSHash(val), {
       message: "Invalid IPFS hash format",
     }),
+  // Participant-specific fields
+  telegramUserID: z
+    .string()
+    .regex(/^\d*$/, "Must contain only numbers")
+    .optional(),
+  timeTokenCode: z.string().optional(),
+  timeTokenIssuer: z.string().optional(),
+  timeTokenDesc: z.string().optional(),
+  timeTokenOfferIPFS: z.string().optional(),
+  partOf: z
+    .array(
+      z.object({
+        id: z.string().regex(/^\d+$/, "ID must contain only numbers"),
+        accountId: z.string().refine(
+          (val) => val === "" || validateStellarAccountId(val), {
+            message: "Invalid Stellar account ID",
+          }
+        ),
+      })
+    )
+    .optional(),
 }).refine(
   (data) => {
     if (!data.myParts.length) return true;

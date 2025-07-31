@@ -6,7 +6,7 @@ import type { AccountDataConfig, BaseFormData } from "@/hooks/useAccountData";
 export interface FieldConfig {
   // Field identification
   name: string;
-  type: 'text' | 'url' | 'boolean' | 'dynamic-array' | 'tags' | 'stellar-account';
+  type: 'text' | 'url' | 'number' | 'checkbox' | 'boolean' | 'dynamic-array' | 'tags';
   
   // Display properties
   label: string;
@@ -57,6 +57,7 @@ export interface FormConfig<T extends BaseFormData> {
   
   // Transaction configuration
   transactionConfig?: {
+    generateTransaction?: (data: Partial<T>) => Promise<string>;
     processChangedData?: (currentData: T, originalData: Partial<T>) => Partial<T>;
     generateTransactionMessage?: (data: T) => string;
   };

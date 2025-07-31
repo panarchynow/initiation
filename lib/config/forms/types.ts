@@ -17,8 +17,11 @@ export type ParticipantFormData = {
   name: string;
   about: string;
   website?: string;
-  contractIPFSHash?: string;
-  telegramPartChatID?: string;
+  telegramUserID?: string;
+  timeTokenCode?: string;
+  timeTokenIssuer?: string;
+  timeTokenDesc?: string;
+  timeTokenOfferIPFS?: string;
   partOf: Array<{ id: string; accountId: string }>;
   tags: string[];
 };

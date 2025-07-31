@@ -30,6 +30,15 @@ export const baseFieldSchemas = {
   // Telegram chat ID  
   telegramChatId: z.string().optional(),
   
+  // Telegram user ID (for participants)
+  telegramUserId: z.string().regex(/^\d*$/, "Must contain only numbers").optional(),
+  
+  // Time token fields (for participants)
+  timeTokenCode: z.string().optional(),
+  timeTokenIssuer: z.string().optional(),
+  timeTokenDesc: z.string().optional(),
+  timeTokenOfferIPFS: z.string().optional(),
+  
   // Boolean flags
   agreement: z.boolean().optional(),
   
@@ -55,6 +64,15 @@ export const fieldGroups = {
   // Agreements and flags
   agreements: z.object({
     mtlaPiiStandard: baseFieldSchemas.agreement,
+  }),
+
+  // Participant-specific fields
+  participantConfig: z.object({
+    telegramUserID: baseFieldSchemas.telegramUserId,
+    timeTokenCode: baseFieldSchemas.timeTokenCode,
+    timeTokenIssuer: baseFieldSchemas.timeTokenIssuer,
+    timeTokenDesc: baseFieldSchemas.timeTokenDesc,
+    timeTokenOfferIPFS: baseFieldSchemas.timeTokenOfferIPFS,
   }),
 } as const;
 
