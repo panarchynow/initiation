@@ -50,7 +50,7 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
     {
       title: "Basic Information",
       description: "Basic profile information",
-      variant: "card",
+      variant: "minimal",
       icon: "user",
       fields: [
         {
@@ -82,7 +82,7 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
     {
       title: "Participant Configuration", 
       description: "Participant-specific settings",
-      variant: "card",
+      variant: "minimal",
       icon: "settings",
       fields: [
         {
@@ -121,7 +121,7 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
     {
       title: "Part Of Organizations",
       description: "Organizations you are part of",
-      variant: "card",
+      variant: "minimal",
       icon: "users",
       fields: [
         {
@@ -141,7 +141,7 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
     {
       title: "Tags & Preferences",
       description: "Select relevant tags",
-      variant: "section",
+      variant: "minimal",
       icon: "tags",
       fields: [
         {
