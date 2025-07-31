@@ -47,7 +47,7 @@ export const corporateFormConfig: FormConfig<CorporateFormData> = {
     {
       title: "Basic Information",
       description: "Enter your basic corporate information",
-      variant: "minimal",
+      variant: "section",
       icon: "user",
       fields: [
         {
@@ -79,7 +79,7 @@ export const corporateFormConfig: FormConfig<CorporateFormData> = {
     {
       title: "Technical Configuration",
       description: "Configure technical settings for your corporate account",
-      variant: "minimal",
+      variant: "section",
       icon: "settings",
       fields: [
         {
@@ -107,7 +107,7 @@ export const corporateFormConfig: FormConfig<CorporateFormData> = {
     {
       title: "Participants",
       description: "Manage your participant accounts",
-      variant: "minimal",
+      variant: "section",
       icon: "users",
       fields: [
         {
@@ -127,7 +127,7 @@ export const corporateFormConfig: FormConfig<CorporateFormData> = {
     {
       title: "Tags & Preferences",
       description: "Select tags and configure your preferences",
-      variant: "minimal",
+      variant: "section",
       icon: "tags",
       fields: [
         {

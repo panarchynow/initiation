@@ -163,7 +163,7 @@ export function ConfigurableForm<T extends BaseFormData>({
             form={form}
             isLoading={isFetchingAccountData}
             error={fetchError}
-            variant="card"
+            variant="section"
             autoLoadOnAccountIdChange={config.autoLoadAccountData}
             showLoadButton={!config.autoLoadAccountData}
             onLoadData={fetchAccountData}

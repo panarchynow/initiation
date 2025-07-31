@@ -50,7 +50,7 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
     {
       title: "Basic Information",
       description: "Basic profile information",
-      variant: "minimal",
+      variant: "section",
       icon: "user",
       fields: [
         {
@@ -82,7 +82,7 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
     {
       title: "Participant Configuration", 
       description: "Participant-specific settings",
-      variant: "minimal",
+      variant: "section",
       icon: "settings",
       fields: [
         {
@@ -121,7 +121,7 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
     {
       title: "Part Of Organizations",
       description: "Organizations you are part of",
-      variant: "minimal",
+      variant: "section",
       icon: "users",
       fields: [
         {
@@ -141,7 +141,7 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
     {
       title: "Tags & Preferences",
       description: "Select relevant tags",
-      variant: "minimal",
+      variant: "section",
       icon: "tags",
       fields: [
         {
@@ -184,7 +184,6 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
         if (normalizedOriginal !== normalizedCurrent) {
           // Include the field with actual current value (empty string should delete the field)
           (changedData as any)[field] = currentValue === '' ? null : currentValue;
-          console.log(`Participant field ${field} changed: "${normalizedOriginal}" -> "${normalizedCurrent}" (will be: ${(changedData as any)[field]})`);
         }
       });
       
