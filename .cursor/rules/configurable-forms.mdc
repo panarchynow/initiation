@@ -1,0 +1,133 @@
+---
+description: Configuration-driven form architecture and best practices
+globs: components/form/ConfigurableForm.tsx,lib/config/forms/*.ts,hooks/useFormBuilder.ts,hooks/useNetworkAwareAccountData.ts
+alwaysApply: false
+---
+# Configurable Forms Architecture
+
+## Core Principle
+Use ConfigurableForm with configuration objects (~20 lines) instead of monolithic components (1000+ lines). Follow KISS/DRY principles with configuration-driven approach.
+
+## Three-Layer Architecture
+1. **UI Components**: shadcn/ui base primitives in [components/ui/](mdc:components/ui/)
+2. **Form Components**: Atomic fields in [components/form/fields/](mdc:components/form/fields/) and composite components in [components/form/composite/](mdc:components/form/composite/)
+3. **Application Components**: Slim wrappers using ConfigurableForm
+
+## Key Components
+
+### NetworkAwareStellarAccount
+- **Primary Account Input**: Combines network selection with account input
+- **Auto-Loading**: Automatically loads and populates form data when valid account ID is entered
+- **Network Switching**: Reloads data when network changes (mainnet ↔ testnet)
+- **Smart Clearing**: Clears form to defaults when no data found or errors occur
+
+### Form Configuration Structure
+```typescript
+export const formConfig: FormConfig<FormData> = {
+  title: "Form Title",
+  schema: zodSchema,
+  defaultValues: { /* ... */ },
+  accountDataConfig: accountDataConfig,
+  showAccountDataLoader: false,  // Use NetworkAwareStellarAccount instead
+  autoLoadAccountData: true,
+  fieldGroups: [
+    {
+      title: "Account Configuration", 
+      fields: [{
+        name: "accountId",
+        type: "network-aware-account",
+        required: true
+      }]
+    }
+  ],
+  transactionConfig: {
+    generateTransaction: async (data) => {
+      const dataWithNetwork = {
+        ...data,
+        network: data.network || 'mainnet'
+      };
+      return generateStellarTransaction(dataWithNetwork);
+    },
+    processChangedData: (current, original) => ({
+      ...changedFields,
+      accountId: current.accountId,
+      network: current.network || 'mainnet'
+    })
+  }
+};
+```
+
+## Field Types
+- `'network-aware-account'`: Combined network + account with auto-loading
+- `'network'`: Network selector only 
+- `'stellar-account'`: Account input only
+- `'text'`, `'url'`, `'boolean'`: Standard fields
+- `'dynamic-array'`: For myParts/partOf arrays
+- `'tags'`: Tag selection
+
+## Network Integration Best Practices
+
+### Always Include Network Field
+```typescript
+// ✅ Correct
+const changedData = {
+  ...otherFields,
+  accountId: currentData.accountId,
+  network: currentData.network || 'mainnet'
+};
+
+// ❌ Wrong - missing network
+const changedData = {
+  ...otherFields,
+  accountId: currentData.accountId
+};
+```
+
+### Transaction Generation
+```typescript
+// ✅ Correct - network parameter passed
+generateTransaction: async (data) => {
+  const dataWithNetwork = {
+    ...data,
+    network: data.network || 'mainnet'
+  };
+  return generateStellarTransaction(dataWithNetwork);
+}
+
+// ❌ Wrong - no network parameter
+generateTransaction: async (data) => {
+  return generateStellarTransaction(data);
+}
+```
+
+## Critical Bug Prevention
+
+### Phantom Deletion Operations
+When clearing form after network switch, always reset originalFormData to match cleared state:
+```typescript
+const cleanOriginalData = {
+  ...config.defaultValues,
+  accountId: currentAccountId,
+  network: currentNetwork,
+};
+accountDataHook.originalFormData = cleanOriginalData;
+```
+
+### Sequence Number Safety
+Ensure transactions load account data from correct network:
+```typescript
+const server = createStellarServerForNetwork(networkType);
+const accountData = await server.loadAccount(formData.accountId);
+```
+
+## Import Patterns
+- UI components: `@/components/ui/`
+- Form fields: `@/components/form/fields`
+- Form configurations: `@/lib/config/forms`
+- Always prefer existing components before creating new ones
+
+## Testing Scenarios
+1. **Network Switching**: mainnet → testnet → form clears → no phantom deletions
+2. **Auto-Loading**: Enter valid account ID → data loads and populates all fields
+3. **Error Handling**: Invalid account or network error → form clears properly
+4. **Sequence Numbers**: Transaction uses correct sequence number from target network

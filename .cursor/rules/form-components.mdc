@@ -6,15 +6,27 @@ alwaysApply: false
 # Form Components and Validation
 
 ## Form Architecture
-- **Main Forms**: [CorporateForm.tsx](mdc:components/CorporateForm.tsx) and [ParticipantForm.tsx](mdc:components/ParticipantForm.tsx)
-- **Form Fields**: Custom form components in [components/form/](mdc:components/form) directory
-- **Validation**: Centralized validation logic in [lib/validation.ts](mdc:lib/validation.ts)
+- **ConfigurableForm**: Primary form architecture using [ConfigurableForm.tsx](mdc:components/form/ConfigurableForm.tsx)
+- **Form Configurations**: [lib/config/forms/](mdc:lib/config/forms) - declarative form definitions
+- **Legacy Forms**: [CorporateForm.tsx](mdc:components/CorporateForm.tsx) and [ParticipantForm.tsx](mdc:components/ParticipantForm.tsx) (deprecated)
+- **Form Fields**: Atomic components in [components/form/fields/](mdc:components/form/fields) directory
+- **Composite Components**: Complex form sections in [components/form/composite/](mdc:components/form/composite)
+- **Validation**: Schema-based validation in [lib/validation/schemas/](mdc:lib/validation/schemas)
 
 ## Form Components Guidelines
+- **Prefer ConfigurableForm**: Use configuration-driven approach over monolithic components
 - All forms use React Hook Form with Zod validation
-- Form fields are composable components in [components/form/](mdc:components/form)
+- **Three-Layer Architecture**: UI components → Form fields → Application components  
+- **Network-Aware Components**: Forms automatically handle Stellar network selection
+- **Auto-Loading**: Account data loads automatically when valid account ID is entered
+- Form fields are atomic components in [components/form/fields/](mdc:components/form/fields)
 - File upload functionality is handled by [FileUploadField.tsx](mdc:components/form/FileUploadField.tsx)
 - Tag selection is handled by [TagSelector.tsx](mdc:components/form/TagSelector.tsx)
+
+## Network Integration
+- **NetworkAwareStellarAccount**: Combines network selection with account input and auto-loading
+- **Network Switching**: Forms automatically clear and reload data when network changes
+- **Sequence Number Safety**: Transactions use correct sequence numbers from target network
 
 ## Validation Rules
 - Use Zod schemas defined in [lib/validation.ts](mdc:lib/validation.ts)

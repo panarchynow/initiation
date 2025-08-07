@@ -22,8 +22,23 @@ This is a [Next.js](mdc:https:/nextjs.org) project using [React](mdc:https:/reac
 - **TypeScript Config**: TypeScript settings are in [tsconfig.json](mdc:tsconfig.json).
 - **Styling**: Uses [Tailwind CSS](mdc:https:/tailwindcss.com). Configuration is in [tailwind.config.ts](mdc:tailwind.config.ts) and PostCSS config is in [postcss.config.js](mdc:postcss.config.js). Global styles might be in `app/globals.css` (please verify).
 - **Routing & Pages**: The application structure likely follows the Next.js App Router pattern, located in the [app/](mdc:app) directory. The main entry point could be [app/page.tsx](mdc:app/page.tsx).
-- **UI Components**: Reusable UI components are likely located in the [components/](mdc:components) directory. The project uses `shadcn/ui` conventions, as indicated by [components.json](mdc:components.json) and dependencies like `@radix-ui/*`, `clsx`, `tailwind-merge`, and `tailwindcss-animate`. Core UI components might be in `components/ui/`.
-- **Utilities**: Helper functions or utilities might be in the [lib/](mdc:lib) directory.
-- **Hooks**: Custom React hooks might be defined in the [hooks/](mdc:hooks) directory.
+- **UI Components**: Uses `shadcn/ui` base primitives in [components/ui/](mdc:components/ui). Form components organized in three layers: UI components → Form fields ([components/form/fields/](mdc:components/form/fields)) → Application components. Main form architecture is ConfigurableForm-based.
+- **Utilities**: Helper functions in [lib/](mdc:lib). Includes Stellar blockchain integration ([lib/stellar/](mdc:lib/stellar)), form configurations ([lib/config/forms/](mdc:lib/config/forms)), and modular validation schemas ([lib/validation/schemas/](mdc:lib/validation/schemas)).
+- **Hooks**: Form-related hooks in [hooks/](mdc:hooks), including network-aware account data loading and transaction generation.
 - **Linting**: ESLint configuration is in [.eslintrc.json](mdc:.eslintrc.json).
 - **Git Ignore**: Files ignored by Git are listed in [.gitignore](mdc:.gitignore).
+
+## Key Features
+
+### Stellar Network Integration
+- **Dual Network Support**: Forms support both Stellar mainnet and testnet
+- **Network-Aware Data Loading**: Account data automatically loads from selected network
+- **Auto-Switching**: Form data reloads when network is changed
+- **Sequence Number Safety**: Transactions use correct sequence numbers from target network
+- **Smart Form Clearing**: Forms clear properly when switching to networks without data
+
+### Configuration-Driven Forms  
+- **ConfigurableForm Architecture**: ~20 line form configs instead of 1000+ line components
+- **Three-Layer Component System**: UI primitives → Form fields → Application components
+- **Auto-Loading Account Data**: Enter account ID → form auto-populates from blockchain
+- **Change Detection**: Only modified fields included in transactions

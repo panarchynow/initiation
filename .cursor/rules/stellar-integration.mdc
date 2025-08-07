@@ -18,15 +18,24 @@ alwaysApply: false
 - **My Part Transactions**: [lib/stellar/mypart.ts](mdc:lib/stellar/mypart.ts)
 
 ## Configuration and Setup
-- **Network Config**: [lib/stellar/config.ts](mdc:lib/stellar/config.ts) - Stellar network settings
-- **Server Utils**: [lib/stellar/server.ts](mdc:lib/stellar/server.ts) - Stellar server interactions
+- **Network Config**: [lib/stellar/config.ts](mdc:lib/stellar/config.ts) - Stellar network settings with mainnet/testnet support
+- **Server Utils**: [lib/stellar/server.ts](mdc:lib/stellar/server.ts) - Stellar server interactions with network-aware functions
 - **Tags System**: [lib/stellar/tags.ts](mdc:lib/stellar/tags.ts) - transaction tagging
+
+## Network Selection Features
+- **Dynamic Network Support**: All transaction functions support both mainnet and testnet
+- **Network-Aware Data Loading**: Account data loads from the correct network based on user selection
+- **Automatic Network Switching**: Forms auto-reload data when network is changed
+- **Correct Sequence Numbers**: Transactions use proper sequence numbers from target network
 
 ## Development Guidelines
 - Always consult [lib/stellar/README.md](mdc:lib/stellar/README.md) before making changes
 - Use proper error handling for network operations
 - Implement transaction validation before submission
 - Follow Stellar SDK best practices
+- **Always pass network parameter to transaction generation functions**
+- **Use `createStellarServerForNetwork()` for network-specific operations**
+- **Ensure form data includes network field when generating transactions**
 - Test transactions on testnet before mainnet deployment
 
 ## Testing

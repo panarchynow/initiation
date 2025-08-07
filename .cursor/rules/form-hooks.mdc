@@ -1,0 +1,90 @@
+---
+description: Form-related hooks and state management patterns
+globs: hooks/*.ts,hooks/use*.ts
+alwaysApply: false
+---
+# Form Hooks and State Management
+
+## Core Form Hooks
+
+### useFormBuilder
+- **Primary Hook**: Main hook for ConfigurableForm architecture
+- **Integration Point**: Combines all form-related functionality
+- **Network-Aware**: Automatically handles network switching and data loading
+- **Transaction Generation**: Manages transaction creation with proper network parameters
+
+### useNetworkAwareAccountData  
+- **Auto-Loading**: Loads account data when valid account ID is entered
+- **Network Switching**: Reloads data when network changes
+- **Debounced Loading**: 1-second delay prevents excessive API calls
+- **Error Handling**: Properly clears form on errors or no data
+- **Critical Feature**: Prevents phantom deletion operations
+
+### useAccountData (Legacy)
+- **Deprecated**: Use useNetworkAwareAccountData for new implementations
+- **Still Used**: For backward compatibility in existing forms
+
+## Network Integration Patterns
+
+### Correct Network Parameter Passing
+```typescript
+// ✅ Correct - always include network
+const dataWithNetwork = {
+  ...data,
+  network: data.network || 'mainnet'
+};
+return generateStellarTransaction(dataWithNetwork);
+
+// ❌ Wrong - missing network parameter  
+return generateStellarTransaction(data);
+```
+
+### Proper Form Clearing
+```typescript
+// ✅ Correct - reset originalFormData to defaults
+const cleanOriginalData = {
+  ...config.defaultValues,
+  accountId: currentAccountId,
+  network: currentNetwork,
+};
+accountDataHook.originalFormData = cleanOriginalData;
+
+// ❌ Wrong - empty object causes phantom deletions
+accountDataHook.originalFormData = {};
+```
+
+## Critical Bug Prevention
+
+### Phantom Deletion Operations
+When network switching clears form, originalFormData must be reset to default values, not empty object. This prevents change detection from thinking fields were deleted.
+
+### Sequence Number Safety
+Always use network-specific server instances:
+```typescript
+const server = createStellarServerForNetwork(networkType);
+const accountData = await server.loadAccount(accountId);
+```
+
+## Hook Dependencies
+
+### useFormBuilder Dependencies
+- `useNetworkAwareAccountData`: For auto-loading account data
+- `useAccountData`: Legacy support for existing configs
+- `useTransactionGeneration`: Transaction creation and XDR generation
+- `useClipboard`: Copy functionality for transaction XDR
+- `useTelegramIntegration`: Telegram bot integration
+
+### Data Flow
+1. User enters account ID + selects network
+2. `useNetworkAwareAccountData` loads data from correct network
+3. Form auto-populates with loaded data
+4. On network change, data reloads from new network
+5. On form submission, `useFormBuilder` processes changes
+6. Transaction generated with correct network parameters
+
+## Best Practices
+- Always handle network parameter in custom hooks
+- Use debouncing for API calls to prevent spam
+- Reset state properly on network changes
+- Include comprehensive error handling
+- Maintain backward compatibility with legacy hooks

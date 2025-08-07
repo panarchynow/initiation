@@ -13,14 +13,18 @@ alwaysApply: false
   - Participant: [app/participant/page.tsx](mdc:app/participant/page.tsx)
 
 ## Component Organization
-- **UI Components**: Reusable components in [components/ui/](mdc:components/ui)
-- **Form Components**: Form-specific components in [components/form/](mdc:components/form)
-- **Main Components**: Application-specific components in [components/](mdc:components)
+- **UI Components**: shadcn/ui base primitives in [components/ui/](mdc:components/ui)
+- **Form Fields**: Atomic form components in [components/form/fields/](mdc:components/form/fields)
+- **Form Composite**: Complex form sections in [components/form/composite/](mdc:components/form/composite) 
+- **ConfigurableForm**: Main form architecture in [components/form/ConfigurableForm.tsx](mdc:components/form/ConfigurableForm.tsx)
+- **Legacy Components**: Deprecated monolithic components in [components/](mdc:components)
 
 ## Library Structure
 - **Utilities**: Helper functions in [lib/utils.ts](mdc:lib/utils.ts)
 - **Stellar Integration**: Blockchain utilities in [lib/stellar/](mdc:lib/stellar)
-- **Validation**: Form and data validation in [lib/validation.ts](mdc:lib/validation.ts)
+- **Form Configurations**: Declarative form configs in [lib/config/forms/](mdc:lib/config/forms)
+- **Validation Schemas**: Modular Zod schemas in [lib/validation/schemas/](mdc:lib/validation/schemas)
+- **Legacy Validation**: [lib/validation.ts](mdc:lib/validation.ts) (deprecated)
 - **File Upload**: Upload utilities in [lib/upload.ts](mdc:lib/upload.ts)
 
 ## Layout Pattern
