@@ -8,6 +8,7 @@ import { participantFormAccountDataConfig } from "./participantFormAccountData.c
 // Participant form schema using modular validation
 const participantFormSchema = z.object({
   accountId: baseFieldSchemas.stellarAccountId,
+  network: baseFieldSchemas.stellarNetwork,
   ...fieldGroups.basicProfile.shape,
   ...fieldGroups.participantConfig.shape,
   partOf: dynamicFieldSchemas.partOf,
@@ -26,6 +27,7 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
   schema: participantFormSchema,
   defaultValues: {
     accountId: "",
+    network: "mainnet" as const,
     name: "",
     about: "",
     website: "",
@@ -42,11 +44,26 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
   accountDataConfig: participantFormAccountDataConfig,
   
   // UI configuration
-  showAccountDataLoader: true,
+  showAccountDataLoader: false,
   autoLoadAccountData: true,
 
   // Form field structure
   fieldGroups: [
+    {
+      title: "Account Configuration",
+      description: "Configure your Stellar account settings",
+      variant: "section",
+      icon: "settings",
+      fields: [
+        {
+          name: "accountId",
+          type: "network-aware-account",
+          label: "Account Configuration",
+          description: "Configure your Stellar account and network settings",
+          required: true,
+        },
+      ],
+    },
     {
       title: "Basic Information",
       description: "Basic profile information",
@@ -158,13 +175,19 @@ export const participantFormConfig: FormConfig<ParticipantFormData> = {
   transactionConfig: {
     generateTransaction: async (data: Partial<ParticipantFormData>) => {
       const { generateStellarTransaction } = await import("@/lib/stellar/transactionGenerator");
-      return generateStellarTransaction(data as any);
+      // Ensure network field is properly passed to transaction generator
+      const dataWithNetwork = {
+        ...data,
+        network: data.network || 'mainnet'
+      };
+      return generateStellarTransaction(dataWithNetwork as any);
     },
     processChangedData: (currentData: ParticipantFormData, originalData: Partial<ParticipantFormData>) => {
       const changedData: Partial<ParticipantFormData> = {};
       
-      // Always include accountId for transaction generation
+      // Always include accountId and network for transaction generation
       changedData.accountId = currentData.accountId;
+      changedData.network = currentData.network || 'mainnet';
       
       // Check basic fields - include empty values to handle deletions
       const basicFields: Array<keyof ParticipantFormData> = [

@@ -1,10 +1,10 @@
 "use client";
 
 import { Keypair } from 'stellar-sdk';
-import { createStellarServer } from './server';
+import { createStellarServer, createStellarServerForNetwork } from './server';
 import { fetchAccountDataAttributes } from './account';
 import * as StellarSdk from 'stellar-sdk';
-import { STELLAR_CONFIG } from './config';
+import { STELLAR_CONFIG, createStellarConfig, type StellarNetwork } from './config';
 import { MANAGE_DATA_KEYS } from './transactionBuilder';
 import { getTagById, addTagOperationsToTransaction } from './tags';
 import { formatPartOfKey, generatePartOfIds } from './partof';
@@ -61,6 +61,7 @@ function addTagsToTransaction(
 // Тип схемы для формы участника
 export type ParticipantFormSchema = {
   accountId: string;
+  network?: StellarNetwork;
   name: string;
   about: string;
   website?: string;
@@ -75,10 +76,16 @@ export type ParticipantFormSchema = {
 
 // Генерирует транзакцию Stellar для данных из формы участника
 export async function generateParticipantTransaction(
-  formData: ParticipantFormSchema,
-  server = createStellarServer()
+  formData: ParticipantFormSchema
 ) {
   try {
+    // Use the network from form data, defaulting to mainnet
+    const networkType = formData.network || 'mainnet';
+    
+    // Create server and config for the specified network
+    const server = createStellarServerForNetwork(networkType);
+    const config = createStellarConfig(networkType);
+    
     // Генерируем случайный keypair, если accountId не предоставлен
     if (!formData.accountId) {
       const keypair = Keypair.random();
@@ -93,10 +100,10 @@ export async function generateParticipantTransaction(
     
     // Создаем транзакцию
     const transaction = new StellarSdk.TransactionBuilder(accountData, {
-      fee: STELLAR_CONFIG.BASE_FEE,
-      networkPassphrase: STELLAR_CONFIG.NETWORK,
+      fee: config.BASE_FEE,
+      networkPassphrase: config.NETWORK,
     })
-    .setTimeout(STELLAR_CONFIG.TIMEOUT_MINUTES * 60);
+    .setTimeout(config.TIMEOUT_MINUTES * 60);
     
     // Добавляем операции для базовых полей формы
     if (formData.name) {

@@ -1,8 +1,18 @@
 "use client";
 
 import { Account } from '@stellar/stellar-sdk';
-import { createStellarServer } from './server';
+import { createStellarServer, createStellarServerForNetwork } from './server';
+import type { StellarNetwork } from './config';
 import { findExistingMyPartKeys } from './mypart';
+
+// Fetch account data attributes from Stellar blockchain with network support
+export async function fetchAccountDataAttributesForNetwork(
+  publicKey: string,
+  networkType: StellarNetwork = 'mainnet'
+): Promise<Record<string, string | Buffer>> {
+  const server = createStellarServerForNetwork(networkType);
+  return fetchAccountDataAttributes(publicKey, server);
+}
 
 // Fetch account data attributes from Stellar blockchain
 export async function fetchAccountDataAttributes(

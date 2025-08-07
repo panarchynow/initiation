@@ -50,6 +50,7 @@ export const formSchema = z.object({
     .refine(validateStellarAccountId, {
       message: "Invalid Stellar account ID",
     }),
+  network: z.enum(['mainnet', 'testnet']).default('mainnet'),
   name: z
     .string()
     .min(1, "Name is required")

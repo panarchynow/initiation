@@ -2,6 +2,8 @@
 
 import * as StellarSdk from '@stellar/stellar-sdk';
 
+export type StellarNetwork = 'mainnet' | 'testnet';
+
 // Helper function to determine which network to use based on environment variables
 const getNetworkConfig = () => {
   // Check environment variables to determine network
@@ -25,7 +27,23 @@ const getNetworkConfig = () => {
 
 const networkConfig = getNetworkConfig();
 
-// Stellar configuration
+// Get network configuration by network type
+export function getNetworkConfigByType(networkType: StellarNetwork) {
+  if (networkType === 'testnet') {
+    return {
+      SERVER_URL: "https://horizon-testnet.stellar.org",
+      NETWORK: StellarSdk.Networks.TESTNET
+    };
+  }
+  
+  // Default to mainnet
+  return {
+    SERVER_URL: "https://horizon.stellar.org",
+    NETWORK: StellarSdk.Networks.PUBLIC
+  };
+}
+
+// Default Stellar configuration (backwards compatibility)
 export const STELLAR_CONFIG = {
   SERVER_URL: networkConfig.SERVER_URL,
   NETWORK: networkConfig.NETWORK,
@@ -33,4 +51,17 @@ export const STELLAR_CONFIG = {
   BASE_FEE: StellarSdk.BASE_FEE,
   // Add TimeoutInfinite constant for use in the transaction builder
   TIMEOUT_INFINITE: true
-}; 
+};
+
+// Create dynamic Stellar configuration based on network type
+export function createStellarConfig(networkType: StellarNetwork = 'mainnet') {
+  const netConfig = getNetworkConfigByType(networkType);
+  
+  return {
+    SERVER_URL: netConfig.SERVER_URL,
+    NETWORK: netConfig.NETWORK,
+    TIMEOUT_MINUTES: 0,
+    BASE_FEE: StellarSdk.BASE_FEE,
+    TIMEOUT_INFINITE: true
+  };
+} 

@@ -18,6 +18,8 @@ import {
 import {
   ByteLimitedInput,
   StellarAccountInput,
+  StellarNetworkSelector,
+  NetworkAwareStellarAccount,
   DynamicFieldArray,
   TagSelectorField,
   FormFieldWrapper,
@@ -130,6 +132,52 @@ export function ConfigurableForm<T extends BaseFormData>({
             name={name}
             label={label}
             description={description}
+          />
+        );
+
+      case 'network':
+        return (
+          <StellarNetworkSelector
+            key={name}
+            name={name}
+            label={label}
+            description={description}
+            required={required}
+          />
+        );
+
+      case 'stellar-account':
+        return (
+          <StellarAccountInput
+            key={name}
+            name={name}
+            label={label}
+            placeholder={placeholder}
+            description={description}
+            required={required}
+          />
+        );
+
+      case 'network-aware-account':
+        return (
+          <NetworkAwareStellarAccount
+            key={name}
+            form={form}
+            accountName="accountId" as any
+            networkName="network" as any
+            accountLabel="Stellar Account ID"
+            networkLabel="Stellar Network"
+            accountDescription="Your Stellar account ID"
+            networkDescription="Select the Stellar network for your account"
+            required={required}
+            autoLoadData={true}
+            onDataLoaded={(data, meta) => {
+              // Auto-populate form fields when data is loaded
+              if (config.accountDataConfig) {
+                // This is handled by the hook integration in useFormBuilder
+                console.log('Account data loaded:', data, 'Meta:', meta);
+              }
+            }}
           />
         );
 

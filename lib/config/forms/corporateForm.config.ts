@@ -8,6 +8,7 @@ import { corporateFormAccountDataConfigSlim } from "./corporateFormAccountData.c
 // Corporate form schema using modular validation
 const corporateFormSchema = z.object({
   accountId: baseFieldSchemas.stellarAccountId,
+  network: baseFieldSchemas.stellarNetwork,
   ...fieldGroups.basicProfile.shape,
   ...fieldGroups.technicalConfig.shape,
   ...fieldGroups.agreements.shape,
@@ -26,6 +27,7 @@ export const corporateFormConfig: FormConfig<CorporateFormData> = {
   schema: corporateFormSchema,
   defaultValues: {
     accountId: "",
+    network: "mainnet" as const,
     name: "",
     about: "",
     website: "",
@@ -40,10 +42,25 @@ export const corporateFormConfig: FormConfig<CorporateFormData> = {
   accountDataConfig: corporateFormAccountDataConfigSlim,
   
   // UI configuration
-  showAccountDataLoader: true,
+  showAccountDataLoader: false,
   autoLoadAccountData: true,
 
   fieldGroups: [
+    {
+      title: "Account Configuration",
+      description: "Configure your Stellar account settings",
+      variant: "section",
+      icon: "settings",
+      fields: [
+        {
+          name: "accountId",
+          type: "network-aware-account",
+          label: "Account Configuration",
+          description: "Configure your Stellar account and network settings",
+          required: true,
+        },
+      ],
+    },
     {
       title: "Basic Information",
       description: "Enter your basic corporate information",
@@ -142,6 +159,15 @@ export const corporateFormConfig: FormConfig<CorporateFormData> = {
 
   // Transaction configuration
   transactionConfig: {
+    generateTransaction: async (data: Partial<CorporateFormData>) => {
+      const { generateStellarTransaction } = await import("@/lib/stellar/transactionGenerator");
+      // Ensure network field is properly passed to transaction generator
+      const dataWithNetwork = {
+        ...data,
+        network: data.network || 'mainnet'
+      };
+      return generateStellarTransaction(dataWithNetwork as any);
+    },
     processChangedData: (currentData, originalData) => {
       if (!originalData) return currentData;
 
@@ -174,10 +200,11 @@ export const corporateFormConfig: FormConfig<CorporateFormData> = {
         }
       });
 
-      // Always include accountId as it's needed for transaction building
+      // Always include accountId and network as they're needed for transaction building
       return {
         ...changedData,
         accountId: currentData.accountId,
+        network: currentData.network || 'mainnet',
       };
     },
     

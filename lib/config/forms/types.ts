@@ -2,6 +2,7 @@
 
 export type CorporateFormData = {
   accountId: string;
+  network?: 'mainnet' | 'testnet';
   name: string;
   about: string;
   website?: string;
@@ -14,6 +15,7 @@ export type CorporateFormData = {
 
 export type ParticipantFormData = {
   accountId: string;
+  network?: 'mainnet' | 'testnet';
   name: string;
   about: string;
   website?: string;

@@ -6,7 +6,7 @@ import type { AccountDataConfig, BaseFormData } from "@/hooks/useAccountData";
 export interface FieldConfig {
   // Field identification
   name: string;
-  type: 'text' | 'url' | 'number' | 'checkbox' | 'boolean' | 'dynamic-array' | 'tags';
+  type: 'text' | 'url' | 'number' | 'checkbox' | 'boolean' | 'dynamic-array' | 'tags' | 'network' | 'stellar-account' | 'network-aware-account';
   
   // Display properties
   label: string;

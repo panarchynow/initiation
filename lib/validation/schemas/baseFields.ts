@@ -44,6 +44,9 @@ export const baseFieldSchemas = {
   
   // Tag arrays
   tags: z.array(z.string()),
+  
+  // Stellar network selection
+  stellarNetwork: z.enum(['mainnet', 'testnet']).default('mainnet'),
 } as const;
 
 // Composite schemas for common field groups

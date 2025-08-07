@@ -2,19 +2,27 @@
 
 import { Keypair } from '@stellar/stellar-sdk';
 import type { Transaction } from '@stellar/stellar-sdk';
-import { createStellarServer } from './server';
-import { fetchAccountDataAttributes } from './account';
+import { createStellarServer, createStellarServerForNetwork } from './server';
+import { createStellarConfig, type StellarNetwork } from './config';
+import { fetchAccountDataAttributesForNetwork } from './account';
 import { buildTransaction } from './transactionBuilder';
 import type { FormSchema } from '../validation';
 
 // Generate Stellar transaction for form data
 export async function generateStellarTransaction(
-  formData: FormSchema,
-  server = createStellarServer()
+  formData: FormSchema & { network?: StellarNetwork }
 ) {
   try {
     console.log('generateStellarTransaction received formData:', formData);
     console.log('formData.accountId:', formData.accountId);
+    console.log('formData.network:', formData.network);
+    
+    // Use the network from form data, defaulting to mainnet
+    const networkType = formData.network || 'mainnet';
+    
+    // Create server and config for the specified network
+    const server = createStellarServerForNetwork(networkType);
+    const config = createStellarConfig(networkType);
     
     // Generate random keypair if accountId is not provided
     if (!formData.accountId) {
@@ -23,15 +31,15 @@ export async function generateStellarTransaction(
       console.log('Generated new random accountId:', formData.accountId);
     }
     
-    console.log('About to load account:', formData.accountId);
+    console.log('About to load account:', formData.accountId, 'on network:', networkType);
     // Load account from Stellar blockchain
     const accountData = await server.loadAccount(formData.accountId);
     
-    // Fetch existing account data attributes
-    const accountDataAttributes = await fetchAccountDataAttributes(formData.accountId, server);
+    // Fetch existing account data attributes for the specified network
+    const accountDataAttributes = await fetchAccountDataAttributesForNetwork(formData.accountId, networkType);
     
-    // Build transaction with account data
-    const transaction = await buildTransaction(accountData, formData, accountDataAttributes);
+    // Build transaction with account data using the specific network config
+    const transaction = await buildTransaction(accountData, formData, accountDataAttributes, config);
     
     // Convert transaction to XDR
     const xdr = (transaction as Transaction).toXDR();
